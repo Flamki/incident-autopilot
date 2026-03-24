@@ -16,6 +16,13 @@ class Settings(BaseSettings):
     gitlab_client_id: str = Field(default='', alias='GITLAB_CLIENT_ID')
     gitlab_client_secret: str = Field(default='', alias='GITLAB_CLIENT_SECRET')
     gitlab_redirect_uri: str = Field(default='http://localhost:8000/auth/gitlab/callback', alias='GITLAB_REDIRECT_URI')
+    google_client_id: str = Field(default='', alias='GOOGLE_CLIENT_ID')
+    google_client_secret: str = Field(default='', alias='GOOGLE_CLIENT_SECRET')
+    google_redirect_uri: str = Field(default='http://localhost:8000/auth/google/callback', alias='GOOGLE_REDIRECT_URI')
+    github_client_id: str = Field(default='', alias='GITHUB_CLIENT_ID')
+    github_client_secret: str = Field(default='', alias='GITHUB_CLIENT_SECRET')
+    github_redirect_uri: str = Field(default='http://localhost:8000/auth/github/callback', alias='GITHUB_REDIRECT_URI')
+    frontend_app_url: str = Field(default='http://localhost:3000', alias='FRONTEND_APP_URL')
 
     jwt_secret: str = Field(default='dev-secret-change-me-please-32-chars', alias='JWT_SECRET')
     jwt_algorithm: str = Field(default='HS256', alias='JWT_ALGORITHM')

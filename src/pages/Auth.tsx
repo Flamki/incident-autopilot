@@ -18,10 +18,15 @@ import { Button } from "@/src/components/ui/Button";
 import { Logo } from "@/src/components/Logo";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/src/lib/utils";
-import { api, setAuthToken } from "@/src/lib/api";
+import { api, getApiBaseUrl, setAuthToken } from "@/src/lib/api";
 import { setCurrentLocalUser } from "@/src/lib/localAuth";
 
 type AuthMode = "login" | "signup";
+const SOCIAL_TICKET_PREFIX = "autopilot_social_ticket";
+
+function socialTicketKey(provider: string, email: string) {
+  return `${SOCIAL_TICKET_PREFIX}:${provider.toLowerCase()}:${email.trim().toLowerCase()}`;
+}
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message) {
@@ -36,7 +41,7 @@ export default function Auth() {
 
   const [mode, setMode] = useState<AuthMode>("login");
   const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isSocialLoading, setIsSocialLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [form, setForm] = useState({
@@ -56,6 +61,48 @@ export default function Auth() {
 
   useEffect(() => {
     setMode(location.pathname === "/signup" ? "signup" : "login");
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const oauthStatus = params.get("oauth");
+    if (!oauthStatus) return;
+
+    const provider = params.get("provider");
+    const message = params.get("message");
+
+    if (oauthStatus === "success") {
+      const token = params.get("token");
+      if (token) {
+        const fullName = params.get("name") || "OAuth User";
+        const email = (params.get("email") || "").toLowerCase();
+        const next = params.get("next");
+        setAuthToken(token);
+        setCurrentLocalUser({ fullName, email });
+        navigate(next && next.startsWith("/") ? next : "/dashboard", { replace: true });
+        return;
+      }
+    }
+
+    if (oauthStatus === "registered") {
+      setSuccess(message || `${provider || "Provider"} account registered. Please login now.`);
+      const email = params.get("email");
+      const ticket = params.get("ticket");
+      if (provider && email && ticket) {
+        localStorage.setItem(socialTicketKey(provider, email), ticket);
+      }
+      if (email) {
+        setForm((prev) => ({ ...prev, email }));
+      }
+      setMode("login");
+    } else if (oauthStatus === "error") {
+      setError(message || "OAuth authentication failed.");
+    }
+
+    navigate(location.pathname, { replace: true });
+  }, [location.pathname, location.search, navigate]);
+
+  useEffect(() => {
     setError("");
     setSuccess("");
   }, [location.pathname]);
@@ -128,40 +175,41 @@ export default function Auth() {
     }
   };
 
-  const handleGoogleConnect = async () => {
-    await handleSocialConnect("google");
+  const handleGoogleConnect = () => {
+    startSocialOauth("google");
   };
 
-  const handleGithubConnect = async () => {
-    await handleSocialConnect("github");
+  const handleGithubConnect = () => {
+    startSocialOauth("github");
   };
 
-  const handleSocialConnect = async (provider: "google" | "github") => {
+  const startSocialOauth = (provider: "google" | "github") => {
     setError("");
     setSuccess("");
-    setIsGoogleLoading(true);
-    try {
-      const providerName = provider === "google" ? "Google" : "GitHub";
-      if (mode === "signup") {
-        await api.socialSignup({
-          provider,
-          email: form.email || undefined,
-          full_name: form.fullName || undefined,
-        });
-        setSuccess(`${providerName} account registered. Now login with ${providerName}.`);
-        handleModeChange("login");
-      } else {
-        const auth = await api.socialLogin({
-          provider,
-          email: form.email || undefined,
-        });
-        await openSession(auth);
-      }
-    } catch (error) {
-      setError(getErrorMessage(error, `${provider} authentication failed. Please try again.`));
-    } finally {
-      setIsGoogleLoading(false);
+    setIsSocialLoading(true);
+    const oauthMode = mode === "signup" ? "signup" : "login";
+    const params = new URLSearchParams({
+      mode: oauthMode,
+      next: nextPath,
+      frontend: window.location.origin,
+    });
+
+    const email = form.email.trim().toLowerCase();
+    if (email) {
+      params.set("email", email);
     }
+    const fullName = form.fullName.trim();
+    if (fullName) {
+      params.set("full_name", fullName);
+    }
+    if (oauthMode === "login" && email) {
+      const ticket = localStorage.getItem(socialTicketKey(provider, email));
+      if (ticket) {
+        params.set("ticket", ticket);
+      }
+    }
+
+    window.location.href = `${getApiBaseUrl()}/auth/${provider}?${params.toString()}`;
   };
 
   return (
@@ -357,7 +405,7 @@ export default function Auth() {
                 )}
 
                 <Button
-                  disabled={isLoading || isGoogleLoading}
+                  disabled={isLoading || isSocialLoading}
                   className="w-full btn-neon h-14 text-[12px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3"
                 >
                   {isLoading ? (
@@ -384,7 +432,7 @@ export default function Auth() {
                     variant="outline"
                     onClick={handleGithubConnect}
                     className="h-12 border-2 border-ink flex items-center justify-center gap-3 font-mono text-[10px] uppercase font-bold hover:bg-bg-surface"
-                    disabled={isLoading || isGoogleLoading}
+                    disabled={isLoading || isSocialLoading}
                   >
                     <Github className="h-4 w-4" /> GitHub
                   </Button>
@@ -392,10 +440,10 @@ export default function Auth() {
                     type="button"
                     variant="outline"
                     onClick={handleGoogleConnect}
-                    disabled={isLoading || isGoogleLoading}
+                    disabled={isLoading || isSocialLoading}
                     className="h-12 border-2 border-ink flex items-center justify-center gap-3 font-mono text-[10px] uppercase font-bold hover:bg-bg-surface"
                   >
-                    {isGoogleLoading ? <Cpu className="h-4 w-4 animate-spin" /> : <Chrome className="h-4 w-4" />}
+                    {isSocialLoading ? <Cpu className="h-4 w-4 animate-spin" /> : <Chrome className="h-4 w-4" />}
                     Google
                   </Button>
                 </div>

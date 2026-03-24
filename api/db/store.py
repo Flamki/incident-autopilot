@@ -688,9 +688,11 @@ class DataStore:
         return row
 
     def get_settings(self, user_id: str) -> Dict[str, Any]:
+        self._ensure_user_settings(user_id)
         return self._data['settings'][user_id]
 
     def update_settings(self, user_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        self._ensure_user_settings(user_id)
         settings = self._data['settings'][user_id]
         settings.update(payload)
         return settings
