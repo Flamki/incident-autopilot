@@ -43,7 +43,7 @@ def test_google_dev_login_works():
     assert resp.status_code == 200
     body = resp.json()
     assert body['token']
-    assert body['user']['email'] == 'google.user@incident-autopilot.app'
+    assert body['user']['email'] == 'google.user@example.com'
 
 
 def test_social_google_signup_then_login_required():

@@ -21,8 +21,8 @@ settings = get_settings()
 GITLAB_URL = 'https://gitlab.com'
 SCOPES = 'api read_user read_repository'
 SOCIAL_DEFAULTS = {
-    'google': ('google.user@incident-autopilot.app', 'Google User'),
-    'github': ('github.user@incident-autopilot.app', 'GitHub User'),
+    'google': ('google.user@example.com', 'Google User'),
+    'github': ('github.user@example.com', 'GitHub User'),
 }
 GOOGLE_OAUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
@@ -268,7 +268,7 @@ async def login(body: LoginRequest, response: Response):
 @router.post('/google/dev', response_model=AuthResponse)
 async def google_dev_login(response: Response):
     user = store.upsert_google_user(
-        email='google.user@incident-autopilot.app',
+        email='google.user@example.com',
         display_name='Google Connected User',
     )
     token = create_jwt(user['id'], user['username'])
