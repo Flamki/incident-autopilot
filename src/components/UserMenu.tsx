@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from "motion/react";
+import { useNavigate } from "react-router-dom";
 import { 
   User, 
   Settings, 
@@ -10,15 +11,43 @@ import {
   ChevronRight
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
+import { setAuthToken } from "@/src/lib/api";
+import { clearLocalAuthState } from "@/src/lib/localAuth";
 
 interface UserMenuProps {
   isOpen: boolean;
   onClose: () => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
+  displayName?: string;
+  email?: string;
 }
 
-export function UserMenu({ isOpen, onClose, isCollapsed, onToggleCollapse }: UserMenuProps) {
+function getInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "JD";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+}
+
+export function UserMenu({
+  isOpen,
+  onClose,
+  isCollapsed,
+  onToggleCollapse,
+  displayName = "John Doe",
+  email,
+}: UserMenuProps) {
+  const navigate = useNavigate();
+  const initials = getInitials(displayName);
+
+  const handleLogout = () => {
+    setAuthToken(null);
+    clearLocalAuthState();
+    onClose();
+    navigate("/login", { replace: true });
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -39,12 +68,12 @@ export function UserMenu({ isOpen, onClose, isCollapsed, onToggleCollapse }: Use
             <div className="p-sp-4 border-b border-border bg-bg-surface">
               <div className="flex items-center gap-sp-3">
                 <div className="h-10 w-10 border-blueprint bg-ink flex items-center justify-center text-[12px] font-mono font-bold text-white relative">
-                  JD
+                  {initials}
                   <div className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full bg-resolved border border-border" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-mono font-bold uppercase truncate">John Doe</p>
-                  <p className="text-[9px] font-mono text-text-muted uppercase truncate">SRE_ENG_01 // LEVEL_4</p>
+                  <p className="text-[11px] font-mono font-bold uppercase truncate">{displayName}</p>
+                  <p className="text-[9px] font-mono text-text-muted uppercase truncate">{email || "SRE_ENG_01 // LEVEL_4"}</p>
                 </div>
               </div>
             </div>
@@ -90,7 +119,10 @@ export function UserMenu({ isOpen, onClose, isCollapsed, onToggleCollapse }: Use
                 )}
               </button>
 
-              <button className="w-full flex items-center gap-sp-3 px-sp-3 py-sp-2 text-[10px] font-mono font-bold uppercase tracking-widest text-critical hover:bg-critical/5 transition-all group">
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-sp-3 px-sp-3 py-sp-2 text-[10px] font-mono font-bold uppercase tracking-widest text-critical hover:bg-critical/5 transition-all group"
+              >
                 <LogOut className="h-3.5 w-3.5" />
                 <span className="flex-1 text-left">Terminate_Session</span>
               </button>

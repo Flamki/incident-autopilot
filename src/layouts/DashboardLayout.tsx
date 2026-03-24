@@ -22,6 +22,7 @@ import { NotificationDropdown } from "@/src/components/NotificationDropdown";
 import { UserMenu } from "@/src/components/UserMenu";
 import { Logo } from "@/src/components/Logo";
 import { useState, useEffect } from "react";
+import { getCurrentLocalUser } from "@/src/lib/localAuth";
 
 interface NavItem {
   icon: LucideIcon;
@@ -48,6 +49,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const currentUser = getCurrentLocalUser();
+  const displayName = currentUser?.fullName || "John Doe";
+  const displayEmail = currentUser?.email || "sre_eng_01@autopilot.local";
+  const initials = displayName
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((chunk) => chunk[0]?.toUpperCase())
+    .join("") || "JD";
 
   useEffect(() => {
     setIsMac(navigator.platform.toUpperCase().indexOf('MAC') >= 0);
@@ -131,14 +141,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             )}
           >
             <div className="h-8 w-8 border-blueprint bg-ink flex items-center justify-center text-[10px] font-mono font-bold text-white relative shrink-0">
-              JD
+              {initials}
               <div className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full bg-resolved border border-border" />
             </div>
             {!isSidebarCollapsed && (
               <>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-mono font-bold uppercase truncate">John Doe</p>
-                  <p className="text-[9px] font-mono text-text-muted uppercase truncate">SRE_ENG_01</p>
+                  <p className="text-[10px] font-mono font-bold uppercase truncate">{displayName}</p>
+                  <p className="text-[9px] font-mono text-text-muted uppercase truncate">{displayEmail}</p>
                 </div>
                 <ChevronDown className={cn("h-3 w-3 text-text-muted transition-transform", isUserMenuOpen && "rotate-180")} />
               </>
@@ -149,6 +159,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             onClose={() => setIsUserMenuOpen(false)} 
             isCollapsed={isSidebarCollapsed}
             onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            displayName={displayName}
+            email={displayEmail}
           />
         </div>
       </aside>
