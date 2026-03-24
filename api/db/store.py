@@ -502,6 +502,28 @@ class DataStore:
         self._ensure_user_settings(user_id)
         return row
 
+    def create_social_user(self, provider: str, email: str, display_name: str) -> Dict[str, Any]:
+        username_seed = email.split('@', 1)[0] if '@' in email else display_name
+        user_id = str(uuid4())
+        row = {
+            'id': user_id,
+            'gitlab_user_id': self._next_external_user_id(),
+            'username': self._unique_username(username_seed),
+            'email': email.strip().lower(),
+            'display_name': display_name.strip(),
+            'avatar_url': None,
+            'auth_provider': provider,
+            'password_hash': None,
+            'access_token': None,
+            'refresh_token': None,
+            'token_expires_at': None,
+            'created_at': utcnow_iso(),
+            'updated_at': utcnow_iso(),
+        }
+        self._data['users'][user_id] = row
+        self._ensure_user_settings(user_id)
+        return row
+
     def upsert_google_user(self, email: str, display_name: str) -> Dict[str, Any]:
         existing = self.get_user_by_email(email)
         if existing:

@@ -160,6 +160,12 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface SocialProviderRequest {
+  provider: "google" | "github";
+  email?: string;
+  full_name?: string;
+}
+
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) || "http://localhost:8000";
 const TOKEN_KEY = "autopilot_jwt";
 
@@ -225,7 +231,8 @@ async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
 export const api = {
   signup: (payload: SignupRequest) => apiFetch<SignupResponse>("/auth/signup", { method: "POST", body: JSON.stringify(payload) }),
   login: (payload: LoginRequest) => apiFetch<AuthResponse>("/auth/login", { method: "POST", body: JSON.stringify(payload) }),
-  googleDevLogin: () => apiFetch<AuthResponse>("/auth/google/dev", { method: "POST" }),
+  socialSignup: (payload: SocialProviderRequest) => apiFetch<SignupResponse>("/auth/social/signup", { method: "POST", body: JSON.stringify(payload) }),
+  socialLogin: (payload: SocialProviderRequest) => apiFetch<AuthResponse>("/auth/social/login", { method: "POST", body: JSON.stringify(payload) }),
   refresh: () => apiFetch<{ token: string }>("/auth/refresh", { method: "POST" }),
   logout: () => apiFetch<void>("/auth/logout", { method: "DELETE" }),
 

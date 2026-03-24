@@ -61,3 +61,9 @@ class SignupResponse(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=256)
+
+
+class SocialProviderRequest(BaseModel):
+    provider: str = Field(pattern='^(google|github)$')
+    email: Optional[EmailStr] = None
+    full_name: Optional[str] = Field(default=None, min_length=2, max_length=120)

@@ -129,14 +129,36 @@ export default function Auth() {
   };
 
   const handleGoogleConnect = async () => {
+    await handleSocialConnect("google");
+  };
+
+  const handleGithubConnect = async () => {
+    await handleSocialConnect("github");
+  };
+
+  const handleSocialConnect = async (provider: "google" | "github") => {
     setError("");
     setSuccess("");
     setIsGoogleLoading(true);
     try {
-      const auth = await api.googleDevLogin();
-      await openSession(auth);
+      const providerName = provider === "google" ? "Google" : "GitHub";
+      if (mode === "signup") {
+        await api.socialSignup({
+          provider,
+          email: form.email || undefined,
+          full_name: form.fullName || undefined,
+        });
+        setSuccess(`${providerName} account registered. Now login with ${providerName}.`);
+        handleModeChange("login");
+      } else {
+        const auth = await api.socialLogin({
+          provider,
+          email: form.email || undefined,
+        });
+        await openSession(auth);
+      }
     } catch (error) {
-      setError(getErrorMessage(error, "Google connection failed. Please try again."));
+      setError(getErrorMessage(error, `${provider} authentication failed. Please try again.`));
     } finally {
       setIsGoogleLoading(false);
     }
@@ -360,8 +382,9 @@ export default function Auth() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setError("GitHub OAuth not configured yet. Use Google connect or email sign up/login.")}
+                    onClick={handleGithubConnect}
                     className="h-12 border-2 border-ink flex items-center justify-center gap-3 font-mono text-[10px] uppercase font-bold hover:bg-bg-surface"
+                    disabled={isLoading || isGoogleLoading}
                   >
                     <Github className="h-4 w-4" /> GitHub
                   </Button>

@@ -37,3 +37,33 @@ def test_google_dev_login_works():
     body = resp.json()
     assert body['token']
     assert body['user']['email'] == 'google.user@incident-autopilot.app'
+
+
+def test_social_google_signup_then_login_required():
+    login_before_signup = client.post('/auth/social/login', json={'provider': 'google', 'email': 'social.google@example.com'})
+    assert login_before_signup.status_code == 401
+
+    signup = client.post(
+        '/auth/social/signup',
+        json={'provider': 'google', 'email': 'social.google@example.com', 'full_name': 'Social Google'},
+    )
+    assert signup.status_code == 201
+
+    login_after_signup = client.post('/auth/social/login', json={'provider': 'google', 'email': 'social.google@example.com'})
+    assert login_after_signup.status_code == 200
+    assert login_after_signup.json()['token']
+
+
+def test_social_github_signup_then_login_required():
+    login_before_signup = client.post('/auth/social/login', json={'provider': 'github', 'email': 'social.github@example.com'})
+    assert login_before_signup.status_code == 401
+
+    signup = client.post(
+        '/auth/social/signup',
+        json={'provider': 'github', 'email': 'social.github@example.com', 'full_name': 'Social Github'},
+    )
+    assert signup.status_code == 201
+
+    login_after_signup = client.post('/auth/social/login', json={'provider': 'github', 'email': 'social.github@example.com'})
+    assert login_after_signup.status_code == 200
+    assert login_after_signup.json()['token']

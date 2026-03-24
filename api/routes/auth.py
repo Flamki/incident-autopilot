@@ -12,12 +12,16 @@ from api.core.config import get_settings
 from api.core.deps import get_current_user_id
 from api.core.security import create_jwt, encrypt_token, hash_password, verify_password
 from api.db.store import store
-from api.models.user import AuthResponse, LoginRequest, RefreshResponse, SignupRequest, SignupResponse, User
+from api.models.user import AuthResponse, LoginRequest, RefreshResponse, SignupRequest, SignupResponse, SocialProviderRequest, User
 
 router = APIRouter()
 settings = get_settings()
 GITLAB_URL = 'https://gitlab.com'
 SCOPES = 'api read_user read_repository'
+SOCIAL_DEFAULTS = {
+    'google': ('google.user@incident-autopilot.app', 'Google User'),
+    'github': ('github.user@incident-autopilot.app', 'GitHub User'),
+}
 
 
 def _set_auth_cookie(response: Response, token: str) -> None:
@@ -73,6 +77,38 @@ async def google_dev_login(response: Response):
         email='google.user@incident-autopilot.app',
         display_name='Google Connected User',
     )
+    token = create_jwt(user['id'], user['username'])
+    _set_auth_cookie(response, token)
+    return AuthResponse(token=token, user=User.model_validate(user))
+
+
+@router.post('/social/signup', response_model=SignupResponse, status_code=status.HTTP_201_CREATED)
+async def social_signup(body: SocialProviderRequest):
+    default_email, default_name = SOCIAL_DEFAULTS[body.provider]
+    email = (body.email or default_email).strip().lower()
+    full_name = (body.full_name or default_name).strip()
+
+    existing = store.get_user_by_email(email)
+    if existing:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Account already exists')
+
+    user = store.create_social_user(
+        provider=body.provider,
+        email=email,
+        display_name=full_name,
+    )
+    return SignupResponse(message=f'{body.provider.title()} account registered successfully', user=User.model_validate(user))
+
+
+@router.post('/social/login', response_model=AuthResponse)
+async def social_login(body: SocialProviderRequest, response: Response):
+    default_email, _ = SOCIAL_DEFAULTS[body.provider]
+    email = (body.email or default_email).strip().lower()
+
+    user = store.get_user_by_email(email)
+    if not user or user.get('auth_provider') != body.provider:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f'No {body.provider.title()} account found. Sign up first.')
+
     token = create_jwt(user['id'], user['username'])
     _set_auth_cookie(response, token)
     return AuthResponse(token=token, user=User.model_validate(user))
