@@ -30,14 +30,6 @@ function RequireAuth({ children }: { children: ReactNode }) {
   return children;
 }
 
-function PublicAuthOnly({ children }: { children: ReactNode }) {
-  const token = getAuthToken();
-  if (token) {
-    return <Navigate to="/dashboard" replace />;
-  }
-  return children;
-}
-
 export default function App() {
   return (
     <FeatureFlagProvider>
@@ -45,22 +37,8 @@ export default function App() {
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<Landing />} />
-          <Route
-            path="/login"
-            element={
-              <PublicAuthOnly>
-                <Auth />
-              </PublicAuthOnly>
-            }
-          />
-          <Route
-            path="/signup"
-            element={
-              <PublicAuthOnly>
-                <Auth />
-              </PublicAuthOnly>
-            }
-          />
+          <Route path="/login" element={<Auth />} />
+          <Route path="/signup" element={<Auth />} />
           
           {/* Dashboard Routes */}
           <Route
