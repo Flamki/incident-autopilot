@@ -1,0 +1,126 @@
+@import "tailwindcss";
+
+@theme {
+  /* Colors - Inspired by UX Pilot */
+  --color-bg-base: #EBEBE8; /* Warm off-white/light gray */
+  --color-bg-card: #FFFFFF;
+  --color-bg-surface: #F5F5F2;
+  --color-bg-hover: #F0F0ED;
+  --color-border: #141414; /* Sharp black borders */
+  --color-border-muted: #D1D1D1;
+  
+  --color-ink: #141414; /* Deep navy/black for text */
+  --color-text-primary: #141414;
+  --color-text-secondary: #4A4A4A;
+  --color-text-muted: #8E8E8E;
+  
+  --color-accent-neon: #CCFF00; /* Neon Lime/Yellow */
+  --color-accent-purple: #7C3AED;
+  
+  --color-critical: #FF3B30;
+  --color-warning: #FF9500;
+  --color-resolved: #34C759;
+  --color-info: #007AFF;
+  --color-ai: #7C3AED;
+
+  /* Typography */
+  --font-display: "Space Grotesk", sans-serif;
+  --font-sans: "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  /* Spacing */
+  --spacing-sp-1: 4px;
+  --spacing-sp-2: 8px;
+  --spacing-sp-3: 12px;
+  --spacing-sp-4: 16px;
+  --spacing-sp-6: 24px;
+  --spacing-sp-8: 32px;
+  --spacing-sp-10: 40px;
+  --spacing-sp-12: 48px;
+  --spacing-sp-16: 64px;
+  --spacing-sp-20: 80px;
+  --spacing-sp-24: 96px;
+  --spacing-sp-32: 128px;
+  --spacing-sp-40: 160px;
+  --spacing-sp-48: 192px;
+  --spacing-sp-56: 224px;
+  --spacing-sp-64: 256px;
+}
+
+:root {
+  background-color: var(--color-bg-base);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+  overflow-x: clip;
+  overflow-y: scroll; /* Ensure scrolling is possible */
+}
+
+/* Global scrollbar hiding while maintaining functionality */
+* {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+*::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
+}
+
+body {
+  overflow-x: hidden;
+  overflow-x: clip;
+  width: 100%;
+  position: relative;
+}
+
+/* Blueprint Grid Background */
+.bg-grid {
+  background-image: 
+    linear-gradient(to right, var(--color-border-muted) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--color-border-muted) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.bg-grid-dots {
+  background-image: radial-gradient(var(--color-border-muted) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Blueprint Border Styles */
+.border-blueprint {
+  border: 1px solid var(--color-border);
+}
+
+.border-blueprint-dashed {
+  border: 1px dashed var(--color-border);
+}
+
+/* Coordinate Labels */
+.coord-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  background: var(--color-bg-base);
+  padding: 2px 4px;
+  border: 1px solid var(--color-border);
+  position: absolute;
+  z-index: 10;
+}
+
+/* Custom Utilities */
+.btn-neon {
+  background-color: var(--color-accent-neon);
+  color: #000;
+  border: 1px solid var(--color-border);
+  box-shadow: 4px 4px 0px var(--color-border);
+  transition: all 0.1s ease;
+}
+
+.btn-neon:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px var(--color-border);
+}
+
+.btn-neon:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0px 0px 0px var(--color-border);
+}
