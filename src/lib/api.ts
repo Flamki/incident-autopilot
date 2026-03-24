@@ -196,6 +196,13 @@ async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
     return undefined as unknown as T;
   }
 
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    const text = await response.text();
+    const preview = text.replace(/\s+/g, " ").trim().slice(0, 140);
+    throw new Error(`Invalid API response: expected JSON, got ${contentType || "unknown"} (${preview})`);
+  }
+
   return (await response.json()) as T;
 }
 

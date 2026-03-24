@@ -28,6 +28,13 @@ import {
 
 type AuthMode = "login" | "signup";
 
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return fallback;
+}
+
 export default function Auth() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -129,8 +136,8 @@ export default function Auth() {
       }
 
       await openSession(user.fullName, user.email);
-    } catch {
-      setError("Authentication service is unavailable. Please try again.");
+    } catch (error) {
+      setError(getErrorMessage(error, "Authentication service is unavailable. Please try again."));
     } finally {
       setIsLoading(false);
     }
@@ -143,8 +150,8 @@ export default function Auth() {
     try {
       const user = ensureGoogleLocalUser();
       await openSession(user.fullName, user.email);
-    } catch {
-      setError("Google connection failed. Please try again.");
+    } catch (error) {
+      setError(getErrorMessage(error, "Google connection failed. Please try again."));
     } finally {
       setIsGoogleLoading(false);
     }
