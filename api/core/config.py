@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     )
 
     agent_callback_secret: str = Field(default='', alias='AGENT_CALLBACK_SECRET')
+    dev_auth_bypass_enabled: bool = Field(default=False, alias='DEV_AUTH_BYPASS')
 
     @property
     def cors_origins(self) -> List[str]:
@@ -38,7 +39,7 @@ class Settings(BaseSettings):
 
     @property
     def dev_auth_bypass(self) -> bool:
-        return self.environment.lower() == 'development'
+        return bool(self.dev_auth_bypass_enabled)
 
 
 @lru_cache(maxsize=1)

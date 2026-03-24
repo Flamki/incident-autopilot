@@ -144,6 +144,22 @@ export interface AuthResponse {
   user: User;
 }
 
+export interface SignupRequest {
+  full_name: string;
+  email: string;
+  password: string;
+}
+
+export interface SignupResponse {
+  message: string;
+  user: User;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) || "http://localhost:8000";
 const TOKEN_KEY = "autopilot_jwt";
 
@@ -207,7 +223,9 @@ async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  loginDev: () => apiFetch<AuthResponse>("/auth/gitlab/callback?code=dev"),
+  signup: (payload: SignupRequest) => apiFetch<SignupResponse>("/auth/signup", { method: "POST", body: JSON.stringify(payload) }),
+  login: (payload: LoginRequest) => apiFetch<AuthResponse>("/auth/login", { method: "POST", body: JSON.stringify(payload) }),
+  googleDevLogin: () => apiFetch<AuthResponse>("/auth/google/dev", { method: "POST" }),
   refresh: () => apiFetch<{ token: string }>("/auth/refresh", { method: "POST" }),
   logout: () => apiFetch<void>("/auth/logout", { method: "DELETE" }),
 

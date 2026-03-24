@@ -33,7 +33,7 @@ Incident Autopilot is a full-stack incident response platform prototype based on
 
 Implemented from blueprint:
 
-- Auth: `/auth/gitlab`, `/auth/gitlab/callback`, `/auth/refresh`, `/auth/logout`
+- Auth: `/auth/signup`, `/auth/login`, `/auth/google/dev`, `/auth/gitlab`, `/auth/gitlab/callback`, `/auth/refresh`, `/auth/logout`
 - Incidents: list/detail/approve/dismiss/reopen/agent runs/retry
 - Repositories: list/create/delete/test/repo incidents
 - Settings: general/agents/notifications
@@ -66,8 +66,15 @@ Backend runs at `http://localhost:8000`.
 
 ### Local Auth
 
-Use the frontend login page (`/login`).
-In development, auth uses `GET /auth/gitlab/callback?code=dev` to issue a local JWT.
+Use the frontend auth pages:
+
+- Sign up: `POST /auth/signup`
+- Login: `POST /auth/login`
+- Google demo connect: `POST /auth/google/dev`
+
+Optional fallback for local demo token:
+
+- `GET /auth/gitlab/callback?code=dev`
 
 ## Environment Variables
 

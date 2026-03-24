@@ -45,3 +45,19 @@ class AuthResponse(BaseModel):
 
 class RefreshResponse(BaseModel):
     token: str
+
+
+class SignupRequest(BaseModel):
+    full_name: str = Field(min_length=2, max_length=120)
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=256)
+
+
+class SignupResponse(BaseModel):
+    message: str
+    user: User
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=256)

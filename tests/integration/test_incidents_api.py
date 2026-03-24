@@ -15,8 +15,7 @@ def _auth_headers():
 
 def test_list_incidents_unauthorized():
     resp = client.get('/incidents')
-    # In development mode, auth bypass is enabled for faster local iteration.
-    assert resp.status_code in [200, 401]
+    assert resp.status_code == 401
 
 
 def test_list_incidents_authenticated():

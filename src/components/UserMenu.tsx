@@ -11,7 +11,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
-import { setAuthToken } from "@/src/lib/api";
+import { api, setAuthToken } from "@/src/lib/api";
 import { clearLocalAuthState } from "@/src/lib/localAuth";
 
 interface UserMenuProps {
@@ -41,7 +41,12 @@ export function UserMenu({
   const navigate = useNavigate();
   const initials = getInitials(displayName);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await api.logout();
+    } catch {
+      // Best-effort logout; continue clearing local session.
+    }
     setAuthToken(null);
     clearLocalAuthState();
     onClose();

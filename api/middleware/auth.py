@@ -42,4 +42,4 @@ class AuthMiddleware(BaseHTTPMiddleware):
     @staticmethod
     def _is_public(path: str) -> bool:
         public_prefixes = ['/auth/', '/webhooks/', '/health', '/docs', '/openapi.json', '/redoc']
-        return any(path.startswith(prefix) for prefix in public_prefixes)
+        return path == '/' or any(path.startswith(prefix) for prefix in public_prefixes)

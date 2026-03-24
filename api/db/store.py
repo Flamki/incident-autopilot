@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+import re
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
@@ -407,6 +408,8 @@ def seed_data() -> Dict[str, Any]:
             'email': 'demo@incident-autopilot.dev',
             'display_name': 'Demo User',
             'avatar_url': None,
+            'auth_provider': 'gitlab',
+            'password_hash': None,
             'access_token': 'demo-access-token',
             'refresh_token': None,
             'token_expires_at': None,
@@ -441,10 +444,100 @@ class DataStore:
     def get_user_by_username(self, username: str) -> Optional[Dict[str, Any]]:
         return next((u for u in self._data['users'].values() if u['username'] == username), None)
 
+    def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        email_norm = email.strip().lower()
+        return next((u for u in self._data['users'].values() if (u.get('email') or '').strip().lower() == email_norm), None)
+
+    def _ensure_user_settings(self, user_id: str) -> None:
+        if user_id in self._data['settings']:
+            return
+        self._data['settings'][user_id] = {
+            'id': str(uuid4()),
+            'user_id': user_id,
+            'notification_email': True,
+            'notification_slack': False,
+            'slack_webhook_url': None,
+            'min_confidence': 0.6,
+            'lookback_hours': 48,
+            'agents_enabled': {'all': True},
+            'quiet_hours_start': None,
+            'quiet_hours_end': None,
+            'created_at': utcnow_iso(),
+        }
+
+    def _next_external_user_id(self) -> int:
+        existing = [int(u.get('gitlab_user_id', 0) or 0) for u in self._data['users'].values()]
+        return max(existing + [1_000_000]) + 1
+
+    def _unique_username(self, base: str) -> str:
+        candidate = re.sub(r'[^a-z0-9_.-]', '.', base.strip().lower()) or 'user'
+        candidate = candidate[:24]
+        usernames = {u['username'] for u in self._data['users'].values()}
+        if candidate not in usernames:
+            return candidate
+        idx = 1
+        while f'{candidate}.{idx}' in usernames:
+            idx += 1
+        return f'{candidate}.{idx}'
+
+    def create_local_user(self, full_name: str, email: str, password_hash: str) -> Dict[str, Any]:
+        username_seed = email.split('@', 1)[0] if '@' in email else full_name
+        user_id = str(uuid4())
+        row = {
+            'id': user_id,
+            'gitlab_user_id': self._next_external_user_id(),
+            'username': self._unique_username(username_seed),
+            'email': email.strip().lower(),
+            'display_name': full_name.strip(),
+            'avatar_url': None,
+            'auth_provider': 'local',
+            'password_hash': password_hash,
+            'access_token': None,
+            'refresh_token': None,
+            'token_expires_at': None,
+            'created_at': utcnow_iso(),
+            'updated_at': utcnow_iso(),
+        }
+        self._data['users'][user_id] = row
+        self._ensure_user_settings(user_id)
+        return row
+
+    def upsert_google_user(self, email: str, display_name: str) -> Dict[str, Any]:
+        existing = self.get_user_by_email(email)
+        if existing:
+            existing['auth_provider'] = 'google'
+            existing['display_name'] = display_name
+            existing['updated_at'] = utcnow_iso()
+            existing['password_hash'] = None
+            self._ensure_user_settings(existing['id'])
+            return existing
+        username_seed = email.split('@', 1)[0] if '@' in email else display_name
+        user_id = str(uuid4())
+        row = {
+            'id': user_id,
+            'gitlab_user_id': self._next_external_user_id(),
+            'username': self._unique_username(username_seed),
+            'email': email.strip().lower(),
+            'display_name': display_name.strip(),
+            'avatar_url': None,
+            'auth_provider': 'google',
+            'password_hash': None,
+            'access_token': None,
+            'refresh_token': None,
+            'token_expires_at': None,
+            'created_at': utcnow_iso(),
+            'updated_at': utcnow_iso(),
+        }
+        self._data['users'][user_id] = row
+        self._ensure_user_settings(user_id)
+        return row
+
     def upsert_user(self, user: Dict[str, Any]) -> Dict[str, Any]:
         existing = next((u for u in self._data['users'].values() if u['gitlab_user_id'] == user['gitlab_user_id']), None)
         if existing:
             existing.update(user)
+            existing.setdefault('auth_provider', 'gitlab')
+            existing.setdefault('password_hash', None)
             existing['updated_at'] = utcnow_iso()
             return existing
         user_id = str(uuid4())
@@ -452,23 +545,12 @@ class DataStore:
             'id': user_id,
             'created_at': utcnow_iso(),
             'updated_at': utcnow_iso(),
+            'auth_provider': 'gitlab',
+            'password_hash': None,
             **user,
         }
         self._data['users'][user_id] = merged
-        if user_id not in self._data['settings']:
-            self._data['settings'][user_id] = {
-                'id': str(uuid4()),
-                'user_id': user_id,
-                'notification_email': True,
-                'notification_slack': False,
-                'slack_webhook_url': None,
-                'min_confidence': 0.6,
-                'lookback_hours': 48,
-                'agents_enabled': {'all': True},
-                'quiet_hours_start': None,
-                'quiet_hours_end': None,
-                'created_at': utcnow_iso(),
-            }
+        self._ensure_user_settings(user_id)
         return merged
 
     def list_repos(self, user_id: str) -> List[Dict[str, Any]]:

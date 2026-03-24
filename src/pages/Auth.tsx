@@ -19,12 +19,7 @@ import { Logo } from "@/src/components/Logo";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/src/lib/utils";
 import { api, setAuthToken } from "@/src/lib/api";
-import {
-  authenticateLocalUser,
-  ensureGoogleLocalUser,
-  registerLocalUser,
-  setCurrentLocalUser,
-} from "@/src/lib/localAuth";
+import { setCurrentLocalUser } from "@/src/lib/localAuth";
 
 type AuthMode = "login" | "signup";
 
@@ -76,10 +71,11 @@ export default function Auth() {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const openSession = async (fullName: string, email: string) => {
-    const auth = await api.loginDev();
+  const openSession = async (auth: { token: string; user: { display_name?: string | null; username: string; email?: string | null } }) => {
+    const fullName = auth.user.display_name || auth.user.username;
+    const email = (auth.user.email || "").toLowerCase();
     setAuthToken(auth.token);
-    setCurrentLocalUser({ fullName, email: email.toLowerCase() });
+    setCurrentLocalUser({ fullName, email });
     navigate(nextPath, { replace: true });
   };
 
@@ -104,16 +100,11 @@ export default function Auth() {
           return;
         }
 
-        const created = registerLocalUser({
-          fullName: form.fullName,
+        await api.signup({
+          full_name: form.fullName,
           email: form.email,
           password: form.password,
         });
-
-        if (!created.ok) {
-          setError(created.message || "Could not create account.");
-          return;
-        }
 
         setSuccess("Account created. Please log in to continue.");
         setForm((prev) => ({
@@ -125,17 +116,11 @@ export default function Auth() {
         return;
       }
 
-      const user = authenticateLocalUser({
+      const auth = await api.login({
         email: form.email,
         password: form.password,
       });
-
-      if (!user) {
-        setError("Invalid email or password. Create an account first.");
-        return;
-      }
-
-      await openSession(user.fullName, user.email);
+      await openSession(auth);
     } catch (error) {
       setError(getErrorMessage(error, "Authentication service is unavailable. Please try again."));
     } finally {
@@ -148,8 +133,8 @@ export default function Auth() {
     setSuccess("");
     setIsGoogleLoading(true);
     try {
-      const user = ensureGoogleLocalUser();
-      await openSession(user.fullName, user.email);
+      const auth = await api.googleDevLogin();
+      await openSession(auth);
     } catch (error) {
       setError(getErrorMessage(error, "Google connection failed. Please try again."));
     } finally {
@@ -344,7 +329,7 @@ export default function Auth() {
                   <div className="flex items-start gap-3 p-sp-3 bg-accent-neon/5 border border-accent-neon/20">
                     <Shield className="h-4 w-4 text-accent-neon shrink-0 mt-0.5" />
                     <p className="text-[9px] font-mono text-text-secondary leading-relaxed uppercase font-bold">
-                      Account creation stays on this device for now. Production should use server-side hashing and persistent identity.
+                      Passwords are securely hashed server-side before storage. Keep your credentials private.
                     </p>
                   </div>
                 )}

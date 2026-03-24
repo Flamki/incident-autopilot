@@ -10,14 +10,72 @@ from fastapi.responses import RedirectResponse
 
 from api.core.config import get_settings
 from api.core.deps import get_current_user_id
-from api.core.security import create_jwt, encrypt_token
+from api.core.security import create_jwt, encrypt_token, hash_password, verify_password
 from api.db.store import store
-from api.models.user import AuthResponse, RefreshResponse, User
+from api.models.user import AuthResponse, LoginRequest, RefreshResponse, SignupRequest, SignupResponse, User
 
 router = APIRouter()
 settings = get_settings()
 GITLAB_URL = 'https://gitlab.com'
 SCOPES = 'api read_user read_repository'
+
+
+def _set_auth_cookie(response: Response, token: str) -> None:
+    response.set_cookie(
+        'token',
+        token,
+        httponly=True,
+        secure=True,
+        samesite='none',
+        max_age=86400 * settings.jwt_expire_days,
+    )
+
+
+@router.post('/signup', response_model=SignupResponse, status_code=status.HTTP_201_CREATED)
+async def signup(body: SignupRequest):
+    existing = store.get_user_by_email(body.email)
+    if existing:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Account already exists')
+
+    user = store.create_local_user(
+        full_name=body.full_name,
+        email=body.email,
+        password_hash=hash_password(body.password),
+    )
+    return SignupResponse(message='Account created successfully', user=User.model_validate(user))
+
+
+@router.post('/login', response_model=AuthResponse)
+async def login(body: LoginRequest, response: Response):
+    user = store.get_user_by_email(body.email)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid email or password')
+
+    password_hash = user.get('password_hash')
+    if not password_hash:
+        provider = user.get('auth_provider', 'external')
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f'This account uses {provider} sign-in. Use the matching provider button.',
+        )
+
+    if not verify_password(body.password, password_hash):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid email or password')
+
+    token = create_jwt(user['id'], user['username'])
+    _set_auth_cookie(response, token)
+    return AuthResponse(token=token, user=User.model_validate(user))
+
+
+@router.post('/google/dev', response_model=AuthResponse)
+async def google_dev_login(response: Response):
+    user = store.upsert_google_user(
+        email='google.user@incident-autopilot.app',
+        display_name='Google Connected User',
+    )
+    token = create_jwt(user['id'], user['username'])
+    _set_auth_cookie(response, token)
+    return AuthResponse(token=token, user=User.model_validate(user))
 
 
 @router.get('/gitlab')
@@ -52,7 +110,7 @@ async def gitlab_callback(
     if code == 'dev' or not settings.gitlab_client_id:
         user = store.get_user(store.demo_user_id)
         token = create_jwt(user['id'], user['username'])
-        response.set_cookie('token', token, httponly=True, secure=False, samesite='lax', max_age=86400 * settings.jwt_expire_days)
+        _set_auth_cookie(response, token)
         return AuthResponse(token=token, user=User.model_validate(user))
 
     if not code:
@@ -101,7 +159,7 @@ async def gitlab_callback(
     )
 
     token = create_jwt(user['id'], user['username'])
-    response.set_cookie('token', token, httponly=True, secure=False, samesite='lax', max_age=86400 * settings.jwt_expire_days)
+    _set_auth_cookie(response, token)
     return AuthResponse(token=token, user=User.model_validate(user))
 
 
