@@ -90,6 +90,16 @@ docker build -t incident-autopilot-api .
 docker run -p 8000:8000 --env-file .env incident-autopilot-api
 ```
 
+## Live URLs
+
+- Frontend (production): `https://incident-autopilot-three.vercel.app`
+- Backend API (production): `https://incident-autopilot-backend-vercel.vercel.app`
+
+Notes:
+
+- Frontend production env `VITE_API_BASE_URL` points to the backend URL above.
+- `VITE_WS_BASE_URL` is set to `disabled` in production for stable behavior on Vercel serverless.
+
 ## GitLab Agent Platform Setup
 
 1. Register the six `.gitlab/agents/*.yml` definitions
