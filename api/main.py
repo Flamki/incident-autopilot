@@ -45,6 +45,17 @@ app.include_router(webhooks.router, prefix='/webhooks', tags=['Webhooks'])
 app.include_router(ws.router, tags=['WebSocket'])
 
 
+@app.get('/')
+async def root():
+    return {
+        'name': 'Incident Autopilot API',
+        'status': 'ok',
+        'version': '1.0.0',
+        'health': '/health',
+        'docs': '/docs',
+    }
+
+
 @app.get('/health')
 async def health():
     return {'status': 'ok', 'version': '1.0.0'}
