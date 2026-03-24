@@ -147,9 +147,11 @@ export interface AuthResponse {
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) || "http://localhost:8000";
 const TOKEN_KEY = "autopilot_jwt";
 
+const rawWsBaseUrl = (import.meta.env.VITE_WS_BASE_URL as string | undefined) || "";
 const WS_BASE_URL =
-  ((import.meta.env.VITE_WS_BASE_URL as string | undefined) ||
-    API_BASE_URL.replace(/^http:\/\//, "ws://").replace(/^https:\/\//, "wss://")).replace(/\/$/, "");
+  rawWsBaseUrl.toLowerCase() === "disabled"
+    ? ""
+    : (rawWsBaseUrl || API_BASE_URL.replace(/^http:\/\//, "ws://").replace(/^https:\/\//, "wss://")).replace(/\/$/, "");
 
 export function getApiBaseUrl() {
   return API_BASE_URL.replace(/\/$/, "");
