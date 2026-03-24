@@ -1,84 +1,108 @@
 # Incident Autopilot
 
-Incident Autopilot is a React + TypeScript dashboard prototype for AI-assisted incident response workflows.
+Incident Autopilot is a full-stack incident response platform prototype based on the GitLab AI Hackathon backend blueprint.
 
-## Tech Stack
+- Frontend: React 19 + Vite + TypeScript + Tailwind CSS
+- Backend: FastAPI + JWT auth + WebSocket updates + GitLab webhook receiver
+- Agent Chain: 6 Python agents scaffolded for GitLab Duo Agent Platform
 
-- React 19
-- Vite 6
-- TypeScript
-- Tailwind CSS v4
-- React Router
-- Recharts
-- React Three Fiber / Drei
+## Repository Layout
 
-## Local Development
+- `src/` frontend SPA
+- `api/` FastAPI backend with all 28 blueprint endpoints
+- `agents/` six agent implementations (`log_analyzer` ... `action_executor`)
+- `.gitlab/agents` GitLab Agent definitions
+- `.gitlab/flows` GitLab Flow orchestration YAML
+- `schemas/incident_context.json` context schema
+- `api/db/migrations` PostgreSQL schema/index SQL
 
-### Prerequisites
+## Quick Start (Local)
 
-- Node.js 20+
-- npm 10+
-
-### Setup
+### 1. Frontend
 
 ```bash
 npm install
 npm run dev
 ```
 
-The app runs at `http://localhost:3000`.
+Frontend runs at `http://localhost:3000`.
 
-## Scripts
+### 2. Backend
 
-- `npm run dev` - Start local dev server
-- `npm run build` - Build for production into `dist/`
-- `npm run preview` - Preview production build locally
-- `npm run lint` - Type-check the project (`tsc --noEmit`)
-- `npm run clean` - Remove build output
+```bash
+python -m venv .venv
+. .venv/Scripts/Activate.ps1
+pip install -r requirements.txt
+uvicorn api.main:app --reload --port 8000
+```
+
+Backend runs at `http://localhost:8000`.
+
+### 3. Local Auth Flow
+
+Use the login page in the frontend (`/login`).
+In development mode, auth uses `GET /auth/gitlab/callback?code=dev` to issue a local JWT.
+
+## API Coverage
+
+Implemented from blueprint:
+
+- Auth: `/auth/gitlab`, `/auth/gitlab/callback`, `/auth/refresh`, `/auth/logout`
+- Incidents: list/detail/approve/dismiss/reopen/agent runs/retry
+- Repositories: list/create/delete/test/repo incidents
+- Settings: general/agents/notifications
+- Analytics: summary + agent metrics
+- Me/Team: profile/team/invite
+- Webhooks: `/webhooks/gitlab`
+- WebSocket: `/ws?token=...`
 
 ## Environment Variables
 
-No environment variables are currently required.
+Copy `.env.example` and fill values as needed.
 
-If we add API integration later, put client-safe variables in `.env` with a `VITE_` prefix (for example `VITE_API_BASE_URL=...`).
+Important frontend vars:
 
-## Deploy To Vercel
+- `VITE_API_BASE_URL`
+- `VITE_WS_BASE_URL`
 
-This repo is configured for Vercel static deployment.
+Important backend vars:
 
-### Option 1: Vercel Dashboard
+- `JWT_SECRET`
+- `GITLAB_CLIENT_ID`, `GITLAB_CLIENT_SECRET`, `GITLAB_REDIRECT_URI`
+- `ALLOWED_ORIGINS`
 
-1. Push this repo to GitHub.
-2. In Vercel, click **Add New Project** and import the repo.
-3. Use the default settings (framework auto-detected as Vite).
-4. Deploy.
+## Deploy
 
-### Option 2: Vercel CLI
+### Frontend (Vercel)
+
+This repo already includes `vercel.json` for SPA rewrites.
+
+1. Import GitHub repo into Vercel
+2. Set `VITE_API_BASE_URL` and `VITE_WS_BASE_URL`
+3. Deploy
+
+### Backend (Railway/Render)
+
+Use `Dockerfile` (or direct Python deploy):
 
 ```bash
-npm i -g vercel
-vercel
+docker build -t incident-autopilot-api .
+docker run -p 8000:8000 --env-file .env incident-autopilot-api
 ```
 
-Then for production:
+## GitLab Agent Platform Setup
 
-```bash
-vercel --prod
-```
+1. Register the six `.gitlab/agents/*.yml` definitions
+2. Register `.gitlab/flows/incident_autopilot.yml`
+3. Connect monitored repository webhooks to `/webhooks/gitlab`
+4. Trigger a failing pipeline to test full flow
 
-## SPA Routing
+## Scripts
 
-`vercel.json` includes a rewrite rule so client-side routes like `/dashboard`, `/incidents`, and `/settings` resolve correctly on hard refresh.
-
-## Public Repo Checklist
-
-- [x] Template references removed
-- [x] Cross-platform npm scripts
-- [x] Build passes locally
-- [x] Vercel config added
-- [x] `.env` protected in `.gitignore`
-- [x] MIT license included
+- `npm run dev` frontend dev server
+- `npm run build` frontend production build
+- `npm run lint` frontend typecheck
 
 ## License
 
-MIT. See [LICENSE](./LICENSE).
+MIT

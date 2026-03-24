@@ -1,0 +1,17 @@
+name: owner-finder
+description: 'Finds likely code owners for incident remediation'
+version: '1.0.0'
+entrypoint:
+  language: python
+  file: agents/owner_finder/agent.py
+  class: OwnerFinderAgent
+inputs:
+  - name: context
+    type: object
+    required: true
+outputs:
+  - name: ownership
+    type: object
+timeout: 20
+on_timeout: continue_with_partial
+on_error: continue_with_partial

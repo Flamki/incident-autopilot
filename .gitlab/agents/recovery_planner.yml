@@ -1,0 +1,22 @@
+name: recovery-planner
+description: 'Generates concrete rollback/hotfix recovery plan'
+version: '1.0.0'
+model:
+  type: anthropic
+  settings:
+    max_tokens: 1800
+    temperature: 0.2
+entrypoint:
+  language: python
+  file: agents/recovery_planner/agent.py
+  class: RecoveryPlannerAgent
+inputs:
+  - name: context
+    type: object
+    required: true
+outputs:
+  - name: recovery_plan
+    type: object
+timeout: 30
+on_timeout: continue_with_partial
+on_error: continue_with_partial

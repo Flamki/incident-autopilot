@@ -1,0 +1,92 @@
+name: incident-autopilot
+description: 'Automated incident diagnosis and supervised recovery'
+version: '1.0.0'
+triggers:
+  - type: pipeline_event
+    event: pipeline_failed
+    conditions:
+      - ref_protected: true
+      - source: ['push', 'merge_request_event', 'schedule']
+  - type: issue_event
+    event: issue_labeled
+    conditions:
+      - label_name: 'incident:critical'
+context:
+  schema: ./schemas/incident_context.json
+  initial_values:
+    incident_id: '{{ uuid() }}'
+    triggered_at: '{{ now_iso() }}'
+    trigger_type: '{{ trigger.event_type }}'
+    project_id: '{{ trigger.project.id }}'
+    project_path: '{{ trigger.project.path_with_namespace }}'
+    pipeline_id: '{{ trigger.pipeline.id | default(null) }}'
+    pipeline_ref: '{{ trigger.pipeline.ref | default(null) }}'
+    pipeline_url: '{{ trigger.pipeline.web_url | default(null) }}'
+agents:
+  - id: log-analyzer
+    name: 'Log Analyzer'
+    agent: .gitlab/agents/log_analyzer.yml
+    input_mapping:
+      context: '$context'
+    output_mapping:
+      pipeline: '$context.pipeline'
+    timeout: 30
+    on_failure:
+      action: continue_with_partial
+      set_field: '$context.pipeline.error_type = unknown'
+
+  - id: commit-bisector
+    name: 'Commit Bisector'
+    agent: .gitlab/agents/commit_bisector.yml
+    depends_on: [log-analyzer]
+    condition: '$context.pipeline.affected_files | length > 0'
+    input_mapping:
+      context: '$context'
+    output_mapping:
+      breaking_commit: '$context.breaking_commit'
+    timeout: 45
+
+  - id: code-context-reader
+    name: 'Code Context Reader'
+    agent: .gitlab/agents/code_context.yml
+    depends_on: [commit-bisector]
+    condition: '$context.breaking_commit.sha != null'
+    input_mapping:
+      context: '$context'
+    output_mapping:
+      code_context: '$context.code_context'
+    timeout: 30
+
+  - id: owner-finder
+    name: 'Owner Finder'
+    agent: .gitlab/agents/owner_finder.yml
+    depends_on: [code-context-reader]
+    input_mapping:
+      context: '$context'
+    output_mapping:
+      ownership: '$context.ownership'
+    timeout: 20
+
+  - id: recovery-planner
+    name: 'Recovery Planner'
+    agent: .gitlab/agents/recovery_planner.yml
+    depends_on: [owner-finder]
+    input_mapping:
+      context: '$context'
+    output_mapping:
+      recovery_plan: '$context.recovery_plan'
+    timeout: 30
+
+  - id: action-executor
+    name: 'Action Executor'
+    agent: .gitlab/agents/action_executor.yml
+    depends_on: [recovery-planner]
+    input_mapping:
+      context: '$context'
+    timeout: 20
+
+settings:
+  global_timeout: 180
+  parallel_agents: false
+  store_context: true
+  notify_on_complete: true

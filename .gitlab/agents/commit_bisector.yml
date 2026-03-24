@@ -1,0 +1,22 @@
+name: commit-bisector
+description: 'Identifies likely breaking commit after pipeline failure'
+version: '1.0.0'
+model:
+  type: anthropic
+  settings:
+    max_tokens: 1400
+    temperature: 0.1
+entrypoint:
+  language: python
+  file: agents/commit_bisector/agent.py
+  class: CommitBisectorAgent
+inputs:
+  - name: context
+    type: object
+    required: true
+outputs:
+  - name: breaking_commit
+    type: object
+timeout: 45
+on_timeout: continue_with_partial
+on_error: continue_with_partial

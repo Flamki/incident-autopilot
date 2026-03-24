@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "IncidentContext",
+  "type": "object",
+  "required": [
+    "incident_id",
+    "triggered_at",
+    "trigger_type",
+    "project_id",
+    "project_path"
+  ],
+  "properties": {
+    "incident_id": {"type": "string"},
+    "triggered_at": {"type": "string", "format": "date-time"},
+    "trigger_type": {"type": "string"},
+    "project_id": {"type": "integer"},
+    "project_path": {"type": "string"},
+    "pipeline_id": {"type": ["integer", "null"]},
+    "pipeline_ref": {"type": ["string", "null"]},
+    "pipeline_url": {"type": ["string", "null"]},
+    "pipeline": {"type": "object"},
+    "breaking_commit": {"type": "object"},
+    "code_context": {"type": "object"},
+    "ownership": {"type": "object"},
+    "recovery_plan": {"type": "object"}
+  },
+  "additionalProperties": true
+}

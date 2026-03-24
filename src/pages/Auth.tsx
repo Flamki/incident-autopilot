@@ -17,6 +17,7 @@ import { Button } from "@/src/components/ui/Button";
 import { Logo } from "@/src/components/Logo";
 import { Link, useNavigate } from "react-router-dom";
 import { cn } from "@/src/lib/utils";
+import { api, setAuthToken } from "@/src/lib/api";
 
 type AuthMode = "login" | "signup";
 
@@ -25,14 +26,17 @@ export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleAuth = (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // Simulate auth delay
-    setTimeout(() => {
+    try {
+      const auth = await api.loginDev();
+      setAuthToken(auth.token);
       setIsLoading(false);
       navigate("/dashboard");
-    }, 1500);
+    } catch {
+      setIsLoading(false);
+    }
   };
 
   return (

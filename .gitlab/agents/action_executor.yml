@@ -1,0 +1,22 @@
+name: action-executor
+description: 'Creates GitLab issue and notifies API callback'
+version: '1.0.0'
+model:
+  type: anthropic
+  settings:
+    max_tokens: 800
+    temperature: 0.1
+entrypoint:
+  language: python
+  file: agents/action_executor/agent.py
+  class: ActionExecutorAgent
+inputs:
+  - name: context
+    type: object
+    required: true
+outputs:
+  - name: issue
+    type: object
+timeout: 20
+on_timeout: continue_with_partial
+on_error: continue_with_partial

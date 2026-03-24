@@ -1,0 +1,22 @@
+name: code-context-reader
+description: 'Analyzes breaking commit diff and code context'
+version: '1.0.0'
+model:
+  type: anthropic
+  settings:
+    max_tokens: 1500
+    temperature: 0.1
+entrypoint:
+  language: python
+  file: agents/code_context/agent.py
+  class: CodeContextAgent
+inputs:
+  - name: context
+    type: object
+    required: true
+outputs:
+  - name: code_context
+    type: object
+timeout: 30
+on_timeout: continue_with_partial
+on_error: continue_with_partial

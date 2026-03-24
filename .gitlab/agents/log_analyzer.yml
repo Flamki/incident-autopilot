@@ -1,0 +1,23 @@
+name: log-analyzer
+description: 'Reads GitLab pipeline logs and classifies failure type'
+version: '1.0.0'
+model:
+  type: anthropic
+  settings:
+    max_tokens: 1500
+    temperature: 0.1
+entrypoint:
+  language: python
+  file: agents/log_analyzer/agent.py
+  class: LogAnalyzerAgent
+inputs:
+  - name: context
+    type: object
+    description: 'Incident context object'
+    required: true
+outputs:
+  - name: pipeline
+    type: object
+timeout: 30
+on_timeout: abort
+on_error: abort_with_notification
