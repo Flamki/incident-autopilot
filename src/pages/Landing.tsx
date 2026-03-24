@@ -154,7 +154,7 @@ export default function Landing() {
           <Link to="/login">
             <Button variant="ghost" size="sm" className="font-mono text-[11px] uppercase tracking-widest hidden sm:flex">Login</Button>
           </Link>
-          <Link to="/dashboard">
+          <Link to="/login">
             <Button size="sm" className="btn-neon font-mono text-[11px] uppercase tracking-widest px-8 h-12">Launch OS</Button>
           </Link>
         </div>
@@ -196,7 +196,7 @@ export default function Landing() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-sp-8">
-            <Link to="/dashboard">
+            <Link to="/login">
               <Button className="btn-neon h-24 px-16 text-2xl font-black uppercase tracking-tighter flex items-center gap-6 group">
                 <Zap className="h-10 w-10 fill-current transition-transform group-hover:rotate-12" /> 
                 Initialize OS
@@ -553,7 +553,7 @@ export default function Landing() {
           </h2>
           
           <div className="flex flex-col items-center gap-sp-8">
-            <Link to="/dashboard">
+            <Link to="/login">
               <Button className="btn-neon h-24 px-20 text-3xl font-black uppercase tracking-tighter flex items-center gap-6 group">
                 <Zap className="h-10 w-10 fill-current transition-transform group-hover:scale-125" /> 
                 Get Autopilot Now
@@ -599,7 +599,7 @@ export default function Landing() {
               <ul className="space-y-5 text-sm font-mono font-bold uppercase tracking-[0.2em] text-text-muted">
                 <li><a href="#how-it-works" className="hover:text-ink hover:translate-x-1 transition-all inline-block">The Blueprint</a></li>
                 <li><a href="#agents" className="hover:text-ink hover:translate-x-1 transition-all inline-block">The Squad</a></li>
-                <li><a href="/dashboard" className="hover:text-ink hover:translate-x-1 transition-all inline-block">Launch OS</a></li>
+                <li><a href="/login" className="hover:text-ink hover:translate-x-1 transition-all inline-block">Launch OS</a></li>
               </ul>
             </div>
 
