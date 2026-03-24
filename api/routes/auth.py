@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 from fastapi.responses import RedirectResponse
 
 from api.core.config import get_settings
-from api.core.deps import get_current_user_id
+from api.core.deps import get_current_user_id, get_current_username
 from api.core.security import create_jwt, encrypt_token, hash_password, verify_password
 from api.db.store import store
 from api.models.user import AuthResponse, LoginRequest, RefreshResponse, SignupRequest, SignupResponse, SocialProviderRequest, User
@@ -97,13 +97,20 @@ def _resolve_frontend_base(request: Optional[Request], frontend: Optional[str]) 
     return _normalize_frontend_base(settings.frontend_app_url) or 'http://localhost:3000'
 
 
-def _create_oauth_state(provider: str, mode: str, next_path: str, frontend_base: str) -> str:
+def _create_oauth_state(
+    provider: str,
+    mode: str,
+    next_path: str,
+    frontend_base: str,
+    signup_ticket: Optional[str] = None,
+) -> str:
     now = int(datetime.now(timezone.utc).timestamp())
     payload = {
         'provider': provider,
         'mode': mode,
         'next': _sanitize_next(next_path),
         'frontend': frontend_base,
+        'signup_ticket': signup_ticket,
         'nonce': secrets.token_urlsafe(10),
         'iat': now,
         'exp': now + OAUTH_STATE_TTL_SECONDS,
@@ -111,7 +118,7 @@ def _create_oauth_state(provider: str, mode: str, next_path: str, frontend_base:
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
-def _parse_oauth_state(state: str, expected_provider: str) -> tuple[str, str, str]:
+def _parse_oauth_state(state: str, expected_provider: str) -> tuple[str, str, str, Optional[str]]:
     try:
         payload = jwt.decode(state, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
     except jwt.PyJWTError as exc:
@@ -127,7 +134,10 @@ def _parse_oauth_state(state: str, expected_provider: str) -> tuple[str, str, st
         raise HTTPException(status_code=400, detail='Invalid OAuth mode in state')
     if not frontend_base or frontend_base not in _allowed_frontend_bases():
         raise HTTPException(status_code=400, detail='Invalid OAuth frontend target in state')
-    return mode, next_path, frontend_base
+    signup_ticket = payload.get('signup_ticket')
+    if signup_ticket is not None and not isinstance(signup_ticket, str):
+        raise HTTPException(status_code=400, detail='Invalid OAuth signup ticket in state')
+    return mode, next_path, frontend_base, signup_ticket
 
 
 def _create_social_registration_ticket(provider: str, email: str, full_name: str) -> str:
@@ -188,13 +198,32 @@ def _oauth_login_success_redirect(provider: str, user: dict, next_path: str, fro
         frontend_base,
         oauth='success',
         provider=provider,
-        token=token,
-        email=(user.get('email') or ''),
-        name=(user.get('display_name') or user.get('username') or ''),
         next=next_path,
     )
     _set_auth_cookie(response, token)
     return response
+
+
+def _oauth_is_configured(provider: str) -> bool:
+    if provider == 'google':
+        return bool(settings.google_client_id and settings.google_client_secret)
+    if provider == 'github':
+        return bool(settings.github_client_id and settings.github_client_secret)
+    return False
+
+
+def _oauth_not_configured_redirect(provider: str, mode: str, frontend_base: str) -> RedirectResponse:
+    return _oauth_error_redirect(
+        provider,
+        mode,
+        f'{provider.title()} OAuth is not configured on server. Please contact support.',
+        frontend_base,
+    )
+
+
+def _require_dev_auth_endpoint() -> None:
+    if settings.environment.strip().lower() == 'production':
+        raise HTTPException(status_code=404, detail='Not Found')
 
 
 def _apply_social_rule(
@@ -267,6 +296,7 @@ async def login(body: LoginRequest, response: Response):
 
 @router.post('/google/dev', response_model=AuthResponse)
 async def google_dev_login(response: Response):
+    _require_dev_auth_endpoint()
     user = store.upsert_google_user(
         email='google.user@example.com',
         display_name='Google Connected User',
@@ -278,6 +308,7 @@ async def google_dev_login(response: Response):
 
 @router.post('/social/signup', response_model=SignupResponse, status_code=status.HTTP_201_CREATED)
 async def social_signup(body: SocialProviderRequest):
+    _require_dev_auth_endpoint()
     default_email, default_name = SOCIAL_DEFAULTS[body.provider]
     email = (body.email or default_email).strip().lower()
     full_name = (body.full_name or default_name).strip()
@@ -296,6 +327,7 @@ async def social_signup(body: SocialProviderRequest):
 
 @router.post('/social/login', response_model=AuthResponse)
 async def social_login(body: SocialProviderRequest, response: Response):
+    _require_dev_auth_endpoint()
     default_email, _ = SOCIAL_DEFAULTS[body.provider]
     email = (body.email or default_email).strip().lower()
 
@@ -314,26 +346,15 @@ async def google_oauth_start(
     mode: str = Query(default='login'),
     next: str = Query(default='/dashboard'),
     frontend: Optional[str] = Query(default=None),
-    email: Optional[str] = Query(default=None),
-    full_name: Optional[str] = Query(default=None),
     ticket: Optional[str] = Query(default=None),
 ):
     resolved_mode = _normalize_mode(mode)
     next_path = _sanitize_next(next)
     frontend_base = _resolve_frontend_base(request, frontend)
-    if not settings.google_client_id or not settings.google_client_secret:
-        default_email, default_name = SOCIAL_DEFAULTS['google']
-        return _apply_social_rule(
-            'google',
-            resolved_mode,
-            (email or default_email),
-            (full_name or default_name),
-            next_path,
-            frontend_base,
-            ticket,
-        )
+    if not _oauth_is_configured('google'):
+        return _oauth_not_configured_redirect('google', resolved_mode, frontend_base)
 
-    state = _create_oauth_state('google', resolved_mode, next_path, frontend_base)
+    state = _create_oauth_state('google', resolved_mode, next_path, frontend_base, signup_ticket=ticket)
     query = urlencode(
         {
             'client_id': settings.google_client_id,
@@ -353,9 +374,11 @@ async def google_oauth_callback(request: Request, code: Optional[str] = Query(de
     fallback_frontend = _resolve_frontend_base(request, None)
     if not code or not state:
         return _oauth_error_redirect('google', 'login', 'Missing OAuth code or state', fallback_frontend)
+    if not _oauth_is_configured('google'):
+        return _oauth_not_configured_redirect('google', 'login', fallback_frontend)
 
     try:
-        mode, next_path, frontend_base = _parse_oauth_state(state, 'google')
+        mode, next_path, frontend_base, signup_ticket = _parse_oauth_state(state, 'google')
     except HTTPException as exc:
         return _oauth_error_redirect('google', 'login', exc.detail, fallback_frontend)
 
@@ -389,7 +412,7 @@ async def google_oauth_callback(request: Request, code: Optional[str] = Query(de
     if not email:
         return _oauth_error_redirect('google', mode, 'Google account email is unavailable', frontend_base)
     full_name = info.get('name') or email.split('@')[0]
-    return _apply_social_rule('google', mode, email, full_name, next_path, frontend_base)
+    return _apply_social_rule('google', mode, email, full_name, next_path, frontend_base, signup_ticket)
 
 
 @router.get('/github')
@@ -398,26 +421,15 @@ async def github_oauth_start(
     mode: str = Query(default='login'),
     next: str = Query(default='/dashboard'),
     frontend: Optional[str] = Query(default=None),
-    email: Optional[str] = Query(default=None),
-    full_name: Optional[str] = Query(default=None),
     ticket: Optional[str] = Query(default=None),
 ):
     resolved_mode = _normalize_mode(mode)
     next_path = _sanitize_next(next)
     frontend_base = _resolve_frontend_base(request, frontend)
-    if not settings.github_client_id or not settings.github_client_secret:
-        default_email, default_name = SOCIAL_DEFAULTS['github']
-        return _apply_social_rule(
-            'github',
-            resolved_mode,
-            (email or default_email),
-            (full_name or default_name),
-            next_path,
-            frontend_base,
-            ticket,
-        )
+    if not _oauth_is_configured('github'):
+        return _oauth_not_configured_redirect('github', resolved_mode, frontend_base)
 
-    state = _create_oauth_state('github', resolved_mode, next_path, frontend_base)
+    state = _create_oauth_state('github', resolved_mode, next_path, frontend_base, signup_ticket=ticket)
     query = urlencode(
         {
             'client_id': settings.github_client_id,
@@ -434,9 +446,11 @@ async def github_oauth_callback(request: Request, code: Optional[str] = Query(de
     fallback_frontend = _resolve_frontend_base(request, None)
     if not code or not state:
         return _oauth_error_redirect('github', 'login', 'Missing OAuth code or state', fallback_frontend)
+    if not _oauth_is_configured('github'):
+        return _oauth_not_configured_redirect('github', 'login', fallback_frontend)
 
     try:
-        mode, next_path, frontend_base = _parse_oauth_state(state, 'github')
+        mode, next_path, frontend_base, signup_ticket = _parse_oauth_state(state, 'github')
     except HTTPException as exc:
         return _oauth_error_redirect('github', 'login', exc.detail, fallback_frontend)
 
@@ -481,7 +495,7 @@ async def github_oauth_callback(request: Request, code: Optional[str] = Query(de
     if not email:
         return _oauth_error_redirect('github', mode, 'GitHub account email is unavailable', frontend_base)
     full_name = info.get('name') or info.get('login') or email.split('@')[0]
-    return _apply_social_rule('github', mode, email, full_name, next_path, frontend_base)
+    return _apply_social_rule('github', mode, email, full_name, next_path, frontend_base, signup_ticket)
 
 
 @router.get('/gitlab')
@@ -570,11 +584,14 @@ async def gitlab_callback(
 
 
 @router.post('/refresh', response_model=RefreshResponse)
-async def refresh_token(user_id: str = Depends(get_current_user_id), request: Request = None):
+async def refresh_token(
+    user_id: str = Depends(get_current_user_id),
+    username: str = Depends(get_current_username),
+    request: Request = None,
+):
     user = store.get_user(user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail='User not found')
-    token = create_jwt(user_id, user['username'])
+    token_username = (user.get('username') if user else None) or username or 'user'
+    token = create_jwt(user_id, token_username)
     if request is not None:
         # Route keeps header auth semantics and also refreshes cookie for browser mode.
         pass

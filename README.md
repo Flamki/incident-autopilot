@@ -33,7 +33,7 @@ Incident Autopilot is a full-stack incident response platform prototype based on
 
 Implemented from blueprint:
 
-- Auth: `/auth/signup`, `/auth/login`, `/auth/google`, `/auth/google/callback`, `/auth/github`, `/auth/github/callback`, `/auth/social/signup`, `/auth/social/login`, `/auth/google/dev`, `/auth/gitlab`, `/auth/gitlab/callback`, `/auth/refresh`, `/auth/logout`
+- Auth: `/auth/signup`, `/auth/login`, `/auth/google`, `/auth/google/callback`, `/auth/github`, `/auth/github/callback`, `/auth/social/signup` (dev-only), `/auth/social/login` (dev-only), `/auth/google/dev` (dev-only), `/auth/gitlab`, `/auth/gitlab/callback`, `/auth/refresh`, `/auth/logout`
 - Incidents: list/detail/approve/dismiss/reopen/agent runs/retry
 - Repositories: list/create/delete/test/repo incidents
 - Settings: general/agents/notifications
@@ -72,9 +72,9 @@ Use the frontend auth pages:
 - Login: `POST /auth/login`
 - Google OAuth start: `GET /auth/google?mode=signup|login&next=/dashboard&frontend=https://your-frontend`
 - GitHub OAuth start: `GET /auth/github?mode=signup|login&next=/dashboard&frontend=https://your-frontend`
-- Social sign up: `POST /auth/social/signup` (`google` or `github`)
-- Social login: `POST /auth/social/login` (`google` or `github`)
-- Google demo connect: `POST /auth/google/dev`
+- Social sign up (dev-only): `POST /auth/social/signup` (`google` or `github`)
+- Social login (dev-only): `POST /auth/social/login` (`google` or `github`)
+- Google demo connect (dev-only): `POST /auth/google/dev`
 
 Set these backend env vars in Vercel for production redirects:
 

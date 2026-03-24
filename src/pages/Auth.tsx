@@ -72,16 +72,28 @@ export default function Auth() {
     const message = params.get("message");
 
     if (oauthStatus === "success") {
-      const token = params.get("token");
-      if (token) {
-        const fullName = params.get("name") || "OAuth User";
-        const email = (params.get("email") || "").toLowerCase();
-        const next = params.get("next");
-        setAuthToken(token);
-        setCurrentLocalUser({ fullName, email });
-        navigate(next && next.startsWith("/") ? next : "/dashboard", { replace: true });
-        return;
-      }
+      const next = params.get("next");
+      const providerName = provider || "provider";
+      (async () => {
+        try {
+          const refreshed = await api.refresh();
+          setAuthToken(refreshed.token);
+
+          const me = await api.me();
+          const fullName = me.display_name || me.username || "OAuth User";
+          const email = (me.email || "").toLowerCase();
+          setCurrentLocalUser({ fullName, email });
+
+          if (email) {
+            localStorage.removeItem(socialTicketKey(providerName, email));
+          }
+          navigate(next && next.startsWith("/") ? next : "/dashboard", { replace: true });
+        } catch (error) {
+          setError(getErrorMessage(error, `${providerName} authentication failed. Please try again.`));
+          navigate(location.pathname, { replace: true });
+        }
+      })();
+      return;
     }
 
     if (oauthStatus === "registered") {
@@ -195,13 +207,6 @@ export default function Auth() {
     });
 
     const email = form.email.trim().toLowerCase();
-    if (email) {
-      params.set("email", email);
-    }
-    const fullName = form.fullName.trim();
-    if (fullName) {
-      params.set("full_name", fullName);
-    }
     if (oauthMode === "login" && email) {
       const ticket = localStorage.getItem(socialTicketKey(provider, email));
       if (ticket) {

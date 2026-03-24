@@ -76,89 +76,31 @@ def test_social_github_signup_then_login_required():
     assert login_after_signup.json()['token']
 
 
-def test_google_oauth_fallback_requires_signup_before_login():
-    email = f'google.oauth.{uuid4().hex[:8]}@example.com'
+def test_google_oauth_requires_server_configuration():
     frontend = 'https://incident-autopilot-three.vercel.app'
 
-    login_before_signup = client.get(
+    login_start = client.get(
         '/auth/google',
-        params={'mode': 'login', 'frontend': frontend, 'email': email},
+        params={'mode': 'login', 'frontend': frontend},
         follow_redirects=False,
     )
-    assert login_before_signup.status_code == 307
-    query = _redirect_query(login_before_signup)
+    assert login_start.status_code == 307
+    query = _redirect_query(login_start)
     assert query['oauth'][0] == 'error'
     assert query['provider'][0] == 'google'
-
-    signup = client.get(
-        '/auth/google',
-        params={'mode': 'signup', 'frontend': frontend, 'email': email, 'full_name': 'Google OAuth'},
-        follow_redirects=False,
-    )
-    assert signup.status_code == 307
-    signup_query = _redirect_query(signup)
-    assert signup_query['oauth'][0] == 'registered'
-    assert signup_query['email'][0] == email
-    assert signup_query['ticket'][0]
-
-    login_after_signup = client.get(
-        '/auth/google',
-        params={
-            'mode': 'login',
-            'frontend': frontend,
-            'email': email,
-            'next': '/incidents',
-            'ticket': signup_query['ticket'][0],
-        },
-        follow_redirects=False,
-    )
-    assert login_after_signup.status_code == 307
-    query = _redirect_query(login_after_signup)
-    assert query['oauth'][0] == 'success'
-    assert query['provider'][0] == 'google'
-    assert query['token'][0]
-    assert query['next'][0] == '/incidents'
+    assert 'not configured' in query['message'][0].lower()
 
 
-def test_github_oauth_fallback_requires_signup_before_login():
-    email = f'github.oauth.{uuid4().hex[:8]}@example.com'
+def test_github_oauth_requires_server_configuration():
     frontend = 'https://incident-autopilot-three.vercel.app'
 
-    login_before_signup = client.get(
+    login_start = client.get(
         '/auth/github',
-        params={'mode': 'login', 'frontend': frontend, 'email': email},
+        params={'mode': 'login', 'frontend': frontend},
         follow_redirects=False,
     )
-    assert login_before_signup.status_code == 307
-    query = _redirect_query(login_before_signup)
+    assert login_start.status_code == 307
+    query = _redirect_query(login_start)
     assert query['oauth'][0] == 'error'
     assert query['provider'][0] == 'github'
-
-    signup = client.get(
-        '/auth/github',
-        params={'mode': 'signup', 'frontend': frontend, 'email': email, 'full_name': 'GitHub OAuth'},
-        follow_redirects=False,
-    )
-    assert signup.status_code == 307
-    signup_query = _redirect_query(signup)
-    assert signup_query['oauth'][0] == 'registered'
-    assert signup_query['email'][0] == email
-    assert signup_query['ticket'][0]
-
-    login_after_signup = client.get(
-        '/auth/github',
-        params={
-            'mode': 'login',
-            'frontend': frontend,
-            'email': email,
-            'next': '/repos',
-            'ticket': signup_query['ticket'][0],
-        },
-        follow_redirects=False,
-    )
-    assert login_after_signup.status_code == 307
-    query = _redirect_query(login_after_signup)
-    assert query['oauth'][0] == 'success'
-    assert query['provider'][0] == 'github'
-    assert query['token'][0]
-    assert query['next'][0] == '/repos'
+    assert 'not configured' in query['message'][0].lower()
