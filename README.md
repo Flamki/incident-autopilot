@@ -36,6 +36,7 @@ Implemented from blueprint:
 - Auth: `/auth/signup`, `/auth/login`, `/auth/google`, `/auth/google/callback`, `/auth/github`, `/auth/github/callback`, `/auth/social/signup` (dev-only), `/auth/social/login` (dev-only), `/auth/google/dev` (dev-only), `/auth/gitlab`, `/auth/gitlab/callback`, `/auth/refresh`, `/auth/logout`
 - Incidents: list/detail/approve/dismiss/reopen/agent runs/retry
 - Repositories: list/create/delete/test/repo incidents
+- Repositories: list/create/delete/test/repo incidents/discover (`/repos/discover`)
 - Settings: general/agents/notifications
 - Analytics: summary + agent metrics
 - Me/Team: profile/team/invite
@@ -80,6 +81,8 @@ Set these backend env vars in Vercel for production redirects:
 
 - `FRONTEND_APP_URL=https://incident-autopilot-three.vercel.app`
 - `ALLOWED_ORIGINS=https://incident-autopilot-three.vercel.app,...`
+
+GitLab repository connection requires a GitLab-authenticated session (`/auth/gitlab/callback`) so the backend can call GitLab APIs and create pipeline webhooks.
 
 Optional fallback for local demo token:
 

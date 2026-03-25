@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     github_client_secret: str = Field(default='', alias='GITHUB_CLIENT_SECRET')
     github_redirect_uri: str = Field(default='http://localhost:8000/auth/github/callback', alias='GITHUB_REDIRECT_URI')
     frontend_app_url: str = Field(default='http://localhost:3000', alias='FRONTEND_APP_URL')
+    public_api_base_url: str = Field(default='', alias='PUBLIC_API_BASE_URL')
 
     jwt_secret: str = Field(default='dev-secret-change-me-please-32-chars', alias='JWT_SECRET')
     jwt_algorithm: str = Field(default='HS256', alias='JWT_ALGORITHM')

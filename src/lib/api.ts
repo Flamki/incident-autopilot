@@ -79,6 +79,14 @@ export interface Repository {
   type?: string;
 }
 
+export interface GitLabProjectSummary {
+  id: number;
+  path_with_namespace: string;
+  name: string;
+  web_url?: string | null;
+  default_branch?: string | null;
+}
+
 export interface User {
   id: string;
   gitlab_user_id: number;
@@ -264,7 +272,13 @@ export const api = {
     apiFetch<AgentRun>(`/incidents/${id}/retry-agent`, { method: "POST", body: JSON.stringify({ agent_name }) }),
 
   listRepos: () => apiFetch<Repository[]>("/repos"),
-  createRepo: (payload: Partial<Repository> & { gitlab_project_id: number; project_path: string }) =>
+  discoverRepos: (search?: string) => {
+    const query = new URLSearchParams();
+    if (search && search.trim()) query.set("search", search.trim());
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return apiFetch<GitLabProjectSummary[]>(`/repos/discover${suffix}`);
+  },
+  createRepo: (payload: Partial<Repository> & { gitlab_project_id: number; project_path?: string }) =>
     apiFetch<Repository>("/repos", { method: "POST", body: JSON.stringify(payload) }),
   deleteRepo: (id: string) => apiFetch<void>(`/repos/${id}`, { method: "DELETE" }),
   testRepo: (id: string) => apiFetch<{ status: string; latency: number }>(`/repos/${id}/test`),

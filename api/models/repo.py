@@ -25,7 +25,7 @@ class Repository(BaseModel):
 
 class CreateRepositoryRequest(BaseModel):
     gitlab_project_id: int
-    project_path: str
+    project_path: Optional[str] = None
     project_name: Optional[str] = None
     project_url: Optional[str] = None
     webhook_id: Optional[int] = None
@@ -37,3 +37,11 @@ class CreateRepositoryRequest(BaseModel):
 class RepoTestResponse(BaseModel):
     status: str
     latency: int
+
+
+class GitLabProjectSummary(BaseModel):
+    id: int
+    path_with_namespace: str
+    name: str
+    web_url: Optional[str] = None
+    default_branch: Optional[str] = None
