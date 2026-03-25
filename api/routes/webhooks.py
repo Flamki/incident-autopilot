@@ -4,10 +4,11 @@ import hmac
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Request
 
 from api.db.store import store
 from api.routes.ws import manager
+from api.services.agent_runtime import run_incident_pipeline
 
 router = APIRouter()
 
@@ -25,6 +26,7 @@ def _validate_webhook_secret(received: Optional[str], expected: Optional[str]) -
 @router.post('/gitlab')
 async def gitlab_webhook(
     request: Request,
+    background_tasks: BackgroundTasks,
     x_gitlab_token: Optional[str] = Header(default=None),
     x_gitlab_event: Optional[str] = Header(default=None),
 ):
@@ -65,6 +67,7 @@ async def gitlab_webhook(
                 'type': 'CI/CD',
             }
         )
+        background_tasks.add_task(run_incident_pipeline, incident['id'])
 
         await manager.push_to_user(
             repo['user_id'],

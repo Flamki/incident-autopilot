@@ -37,6 +37,7 @@ Implemented from blueprint:
 - Incidents: list/detail/approve/dismiss/reopen/agent runs/retry
 - Repositories: list/create/delete/test/repo incidents
 - Repositories: list/create/delete/test/repo incidents/discover (`/repos/discover`)
+- Agent Runtime: webhook-triggered multi-agent chain (`log_analyzer -> commit_bisector -> code_context -> owner_finder -> recovery_planner`) plus action executor on approval
 - Settings: general/agents/notifications
 - Analytics: summary + agent metrics
 - Me/Team: profile/team/invite
@@ -83,6 +84,7 @@ Set these backend env vars in Vercel for production redirects:
 - `ALLOWED_ORIGINS=https://incident-autopilot-three.vercel.app,...`
 
 GitLab repository connection requires a GitLab-authenticated session (`/auth/gitlab/callback`) so the backend can call GitLab APIs and create pipeline webhooks.
+If you want to skip GitLab login during hackathon demos, set `GITLAB_ACCESS_TOKEN` to a GitLab PAT.
 
 Optional fallback for local demo token:
 
@@ -103,7 +105,12 @@ Backend:
 - `GITLAB_CLIENT_ID`
 - `GITLAB_CLIENT_SECRET`
 - `GITLAB_REDIRECT_URI`
+- `GITLAB_ACCESS_TOKEN` (optional PAT fallback)
 - `ALLOWED_ORIGINS`
+- `PUBLIC_API_BASE_URL`
+- `ANTHROPIC_API_KEY`
+- `ANTHROPIC_MODEL`
+- `ANTHROPIC_API_BASE`
 
 ## Verification Commands
 

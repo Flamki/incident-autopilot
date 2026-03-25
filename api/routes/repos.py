@@ -40,15 +40,16 @@ def _gitlab_client_for_user(user_id: str) -> tuple[dict, str]:
     if not user:
         raise HTTPException(status_code=404, detail='User not found')
     encrypted_token = user.get('access_token')
-    if not encrypted_token:
-        raise HTTPException(
-            status_code=400,
-            detail='GitLab is not connected for this account. Login with GitLab first.',
-        )
-    try:
-        token = decrypt_token(encrypted_token)
-    except Exception as exc:  # pragma: no cover - defensive fallback
-        raise HTTPException(status_code=500, detail='Stored GitLab token is invalid') from exc
+    token = ''
+    if encrypted_token:
+        try:
+            token = decrypt_token(encrypted_token)
+        except Exception as exc:  # pragma: no cover - defensive fallback
+            raise HTTPException(status_code=500, detail='Stored GitLab token is invalid') from exc
+    if not token:
+        token = settings.gitlab_access_token
+    if not token:
+        raise HTTPException(status_code=400, detail='GitLab is not connected. Login with GitLab or set GITLAB_ACCESS_TOKEN.')
     return user, token
 
 
@@ -92,7 +93,26 @@ async def create_repository(body: CreateRepositoryRequest, request: Request, use
     if existing and existing.get('is_active'):
         raise HTTPException(status_code=409, detail='Repository is already connected')
 
-    _, token = _gitlab_client_for_user(user_id)
+    token = ''
+    try:
+        _, token = _gitlab_client_for_user(user_id)
+    except HTTPException:
+        token = ''
+
+    if not token:
+        if not body.project_path:
+            raise HTTPException(
+                status_code=400,
+                detail='GitLab token is unavailable. Provide project_path for manual repository registration.',
+            )
+        payload = body.model_dump()
+        payload['project_name'] = body.project_name or body.project_path.split('/')[-1]
+        payload['webhook_secret'] = body.webhook_secret or secrets.token_urlsafe(32)
+        payload['webhook_id'] = None
+        payload['project_url'] = body.project_url or f'https://gitlab.com/{body.project_path}'
+        repo = store.create_repo(user_id, payload)
+        return Repository.model_validate(repo)
+
     project = _gitlab_request(token, 'GET', f'/projects/{body.gitlab_project_id}')
 
     webhook_secret = body.webhook_secret or secrets.token_urlsafe(32)
@@ -147,8 +167,14 @@ async def test_repository_connection(repo_id: str, user_id: str = Depends(get_cu
     if not repo:
         raise HTTPException(status_code=404, detail='Repository not found')
 
-    _, token = _gitlab_client_for_user(user_id)
+    token = ''
+    try:
+        _, token = _gitlab_client_for_user(user_id)
+    except HTTPException:
+        token = ''
     started = time.perf_counter()
+    if not token:
+        return RepoTestResponse(status='manual', latency=0)
     _gitlab_request(token, 'GET', f'/projects/{repo["gitlab_project_id"]}')
     latency_ms = int((time.perf_counter() - started) * 1000)
     return RepoTestResponse(status='ok', latency=latency_ms)

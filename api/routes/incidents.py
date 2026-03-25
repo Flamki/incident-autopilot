@@ -15,6 +15,7 @@ from api.models.incident import (
     RetryAgentRequest,
 )
 from api.routes.ws import manager
+from api.services.agent_runtime import run_action_executor, run_incident_pipeline
 
 router = APIRouter()
 
@@ -73,14 +74,21 @@ async def approve_incident(incident_id: str, user_id: str = Depends(get_current_
         raise HTTPException(status_code=409, detail='Incident already resolved')
 
     now = datetime.now(timezone.utc).isoformat()
+    try:
+        action_result = await run_action_executor(incident_id)
+    except Exception:
+        action_result = None
+    issue_iid = (action_result or {}).get('gitlab_issue_iid') if action_result else None
+    issue_url = (action_result or {}).get('gitlab_issue_url') if action_result else None
+
     incident = store.update_incident(
         incident,
         status='RESOLVED',
         approved_by=user_id,
         approved_at=now,
         resolved_at=now,
-        gitlab_issue_iid=incident.get('gitlab_issue_iid') or 999,
-        gitlab_issue_url=incident.get('gitlab_issue_url') or f"https://gitlab.com/demo/project/-/issues/{incident.get('gitlab_issue_iid') or 999}",
+        gitlab_issue_iid=issue_iid or incident.get('gitlab_issue_iid'),
+        gitlab_issue_url=issue_url or incident.get('gitlab_issue_url'),
     )
 
     await manager.push_to_user(
@@ -94,6 +102,14 @@ async def approve_incident(incident_id: str, user_id: str = Depends(get_current_
     )
 
     return Incident.model_validate(incident)
+
+
+@router.post('/{incident_id}/run', response_model=Incident)
+async def run_incident_agents(incident_id: str, user_id: str = Depends(get_current_user_id)):
+    incident = _validate_incident(user_id, incident_id)
+    await run_incident_pipeline(incident_id)
+    updated = store.get_incident(user_id, incident_id) or incident
+    return Incident.model_validate(updated)
 
 
 @router.patch('/{incident_id}/dismiss', response_model=Incident)
@@ -159,31 +175,13 @@ async def retry_agent(
     user_id: str = Depends(get_current_user_id),
 ):
     _validate_incident(user_id, incident_id)
+    if body.agent_name == 'action_executor':
+        await run_action_executor(incident_id)
+    else:
+        await run_incident_pipeline(incident_id)
 
-    index_map = {
-        'log_analyzer': 1,
-        'commit_bisector': 2,
-        'code_context': 3,
-        'owner_finder': 4,
-        'recovery_planner': 5,
-        'action_executor': 6,
-    }
-    run = store.create_agent_run(
-        {
-            'incident_id': incident_id,
-            'agent_name': body.agent_name,
-            'agent_index': index_map.get(body.agent_name, 99),
-            'status': 'running',
-        }
-    )
-
-    await manager.push_to_user(
-        user_id,
-        {
-            'type': 'agent.started',
-            'incident_id': incident_id,
-            'agent': body.agent_name,
-        },
-    )
-
-    return AgentRun.model_validate(run)
+    runs = store.get_agent_runs(incident_id)
+    latest = next((r for r in reversed(runs) if r.get('agent_name') == body.agent_name), runs[-1] if runs else None)
+    if not latest:
+        raise HTTPException(status_code=500, detail='Agent retry did not produce a run record')
+    return AgentRun.model_validate(latest)

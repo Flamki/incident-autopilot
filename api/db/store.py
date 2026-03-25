@@ -584,6 +584,9 @@ class DataStore:
             return None
         return repo
 
+    def get_repo_by_id(self, repo_id: str) -> Optional[Dict[str, Any]]:
+        return self._data['repos'].get(repo_id)
+
     def get_repo_by_project_id(self, project_id: int) -> Optional[Dict[str, Any]]:
         return next((r for r in self._data['repos'].values() if r['gitlab_project_id'] == project_id and r['is_active']), None)
 
@@ -629,6 +632,9 @@ class DataStore:
         if not incident or incident['user_id'] != user_id:
             return None
         return incident
+
+    def get_incident_any(self, incident_id: str) -> Optional[Dict[str, Any]]:
+        return self._data['incidents'].get(incident_id)
 
     def create_incident(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         incident_id = payload.get('id') or str(uuid4())
@@ -685,6 +691,13 @@ class DataStore:
             **payload,
         }
         self._data['agent_runs'][row['id']] = row
+        return row
+
+    def update_agent_run(self, run_id: str, **changes: Any) -> Optional[Dict[str, Any]]:
+        row = self._data['agent_runs'].get(run_id)
+        if not row:
+            return None
+        row.update(changes)
         return row
 
     def get_settings(self, user_id: str) -> Dict[str, Any]:

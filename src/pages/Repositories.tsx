@@ -15,6 +15,11 @@ export default function Repositories() {
   const [discoverError, setDiscoverError] = useState("");
   const [discoveredProjects, setDiscoveredProjects] = useState<GitLabProjectSummary[]>([]);
   const [connectingProjectId, setConnectingProjectId] = useState<number | null>(null);
+  const [manualProjectId, setManualProjectId] = useState("");
+  const [manualProjectPath, setManualProjectPath] = useState("");
+  const [manualProjectName, setManualProjectName] = useState("");
+  const [manualBranch, setManualBranch] = useState("main");
+  const [isManualConnecting, setIsManualConnecting] = useState(false);
 
   const loadRepos = () => {
     api.listRepos().then(setRepos).catch(() => undefined);
@@ -69,6 +74,35 @@ export default function Repositories() {
       setDiscoverError(message);
     } finally {
       setConnectingProjectId(null);
+    }
+  };
+
+  const connectManualProject = async () => {
+    const parsedId = Number.parseInt(manualProjectId, 10);
+    if (!Number.isFinite(parsedId) || parsedId <= 0 || !manualProjectPath.trim()) {
+      setDiscoverError("Manual connect requires valid project ID and project path.");
+      return;
+    }
+    setIsManualConnecting(true);
+    setDiscoverError("");
+    try {
+      await api.createRepo({
+        gitlab_project_id: parsedId,
+        project_path: manualProjectPath.trim(),
+        project_name: manualProjectName.trim() || undefined,
+        branch: manualBranch.trim() || "main",
+        type: "Service",
+      });
+      setManualProjectId("");
+      setManualProjectPath("");
+      setManualProjectName("");
+      setManualBranch("main");
+      await loadRepos();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Manual project connection failed.";
+      setDiscoverError(message);
+    } finally {
+      setIsManualConnecting(false);
     }
   };
 
@@ -139,6 +173,43 @@ export default function Repositories() {
             ))}
           </div>
         )}
+
+        <div className="mt-sp-4 border border-border bg-white p-sp-3">
+          <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-text-muted mb-sp-3">Manual Project Connect (Fallback)</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-sp-3">
+            <input
+              type="number"
+              value={manualProjectId}
+              onChange={(e) => setManualProjectId(e.target.value)}
+              placeholder="PROJECT_ID"
+              className="bg-bg-surface border border-border h-10 px-3 text-[10px] font-mono font-bold uppercase focus:outline-none focus:border-ink"
+            />
+            <input
+              type="text"
+              value={manualProjectPath}
+              onChange={(e) => setManualProjectPath(e.target.value)}
+              placeholder="GROUP/PROJECT_PATH"
+              className="bg-bg-surface border border-border h-10 px-3 text-[10px] font-mono font-bold uppercase focus:outline-none focus:border-ink"
+            />
+            <input
+              type="text"
+              value={manualProjectName}
+              onChange={(e) => setManualProjectName(e.target.value)}
+              placeholder="PROJECT_NAME (OPTIONAL)"
+              className="bg-bg-surface border border-border h-10 px-3 text-[10px] font-mono font-bold uppercase focus:outline-none focus:border-ink"
+            />
+            <input
+              type="text"
+              value={manualBranch}
+              onChange={(e) => setManualBranch(e.target.value)}
+              placeholder="BRANCH"
+              className="bg-bg-surface border border-border h-10 px-3 text-[10px] font-mono font-bold uppercase focus:outline-none focus:border-ink"
+            />
+            <Button className="h-10 text-[10px] font-bold uppercase tracking-widest" onClick={connectManualProject} disabled={isManualConnecting}>
+              {isManualConnecting ? "Connecting..." : "Manual Connect"}
+            </Button>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-sp-6">

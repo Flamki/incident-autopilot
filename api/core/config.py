@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     gitlab_client_id: str = Field(default='', alias='GITLAB_CLIENT_ID')
     gitlab_client_secret: str = Field(default='', alias='GITLAB_CLIENT_SECRET')
     gitlab_redirect_uri: str = Field(default='http://localhost:8000/auth/gitlab/callback', alias='GITLAB_REDIRECT_URI')
+    gitlab_access_token: str = Field(default='', alias='GITLAB_ACCESS_TOKEN')
     google_client_id: str = Field(default='', alias='GOOGLE_CLIENT_ID')
     google_client_secret: str = Field(default='', alias='GOOGLE_CLIENT_SECRET')
     google_redirect_uri: str = Field(default='http://localhost:8000/auth/google/callback', alias='GOOGLE_REDIRECT_URI')
@@ -24,6 +25,9 @@ class Settings(BaseSettings):
     github_redirect_uri: str = Field(default='http://localhost:8000/auth/github/callback', alias='GITHUB_REDIRECT_URI')
     frontend_app_url: str = Field(default='http://localhost:3000', alias='FRONTEND_APP_URL')
     public_api_base_url: str = Field(default='', alias='PUBLIC_API_BASE_URL')
+    anthropic_api_key: str = Field(default='', alias='ANTHROPIC_API_KEY')
+    anthropic_model: str = Field(default='claude-3-5-sonnet-latest', alias='ANTHROPIC_MODEL')
+    anthropic_api_base: str = Field(default='https://api.anthropic.com/v1/messages', alias='ANTHROPIC_API_BASE')
 
     jwt_secret: str = Field(default='dev-secret-change-me-please-32-chars', alias='JWT_SECRET')
     jwt_algorithm: str = Field(default='HS256', alias='JWT_ALGORITHM')

@@ -264,6 +264,7 @@ export const api = {
   },
   getIncident: (id: string) => apiFetch<Incident>(`/incidents/${id}`),
   approveIncident: (id: string) => apiFetch<Incident>(`/incidents/${id}/approve`, { method: "PATCH" }),
+  runIncidentAgents: (id: string) => apiFetch<Incident>(`/incidents/${id}/run`, { method: "POST" }),
   dismissIncident: (id: string, reason?: string) =>
     apiFetch<Incident>(`/incidents/${id}/dismiss`, { method: "PATCH", body: JSON.stringify({ reason }) }),
   reopenIncident: (id: string) => apiFetch<Incident>(`/incidents/${id}/reopen`, { method: "PATCH" }),

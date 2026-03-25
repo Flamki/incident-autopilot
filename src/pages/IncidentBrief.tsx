@@ -13,15 +13,17 @@ export default function IncidentBrief() {
   const navigate = useNavigate();
   const [incident, setIncident] = useState<Incident | null>(null);
   const [agentRuns, setAgentRuns] = useState<AgentRun[]>([]);
+  const [isRunningAgents, setIsRunningAgents] = useState(false);
+
+  const loadIncident = async (incidentId: string) => {
+    const [incidentResp, runsResp] = await Promise.all([api.getIncident(incidentId), api.incidentAgents(incidentId)]);
+    setIncident(incidentResp);
+    setAgentRuns(runsResp);
+  };
 
   useEffect(() => {
     if (!id) return;
-    Promise.all([api.getIncident(id), api.incidentAgents(id)])
-      .then(([incidentResp, runsResp]) => {
-        setIncident(incidentResp);
-        setAgentRuns(runsResp);
-      })
-      .catch(() => undefined);
+    loadIncident(id).catch(() => undefined);
   }, [id]);
 
   const findings = useMemo(() => {
@@ -75,6 +77,18 @@ export default function IncidentBrief() {
     if (!id) return;
     const updated = await api.dismissIncident(id, "Dismissed by operator");
     setIncident(updated);
+  };
+
+  const handleRunAgents = async () => {
+    if (!id) return;
+    setIsRunningAgents(true);
+    try {
+      const updated = await api.runIncidentAgents(id);
+      setIncident(updated);
+      await loadIncident(id);
+    } finally {
+      setIsRunningAgents(false);
+    }
   };
 
   if (!incident) {
@@ -169,6 +183,9 @@ export default function IncidentBrief() {
               </div>
 
               <div className="space-y-sp-3">
+                <Button variant="outline" className="w-full text-[10px] font-mono font-bold uppercase tracking-widest" onClick={handleRunAgents} disabled={isRunningAgents}>
+                  {isRunningAgents ? "Running Agents..." : "Run Agent Chain"}
+                </Button>
                 <Button className="w-full btn-neon h-12 text-[12px] font-bold uppercase tracking-widest" onClick={handleApprove}>
                   Approve & Execute <CheckCircle2 className="ml-2 h-4 w-4" />
                 </Button>
