@@ -5,6 +5,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from api.core.config import get_settings
 from api.core.deps import get_current_user_id
 from api.db.store import store
 from api.models.incident import (
@@ -18,6 +19,23 @@ from api.routes.ws import manager
 from api.services.agent_runtime import run_action_executor, run_incident_pipeline
 
 router = APIRouter()
+settings = get_settings()
+
+
+def _runtime_mode() -> str:
+    return (settings.agent_runtime_mode or 'gitlab_duo').strip().lower()
+
+
+def _agent_index(name: str) -> int:
+    order = {
+        'log_analyzer': 1,
+        'commit_bisector': 2,
+        'code_context': 3,
+        'owner_finder': 4,
+        'recovery_planner': 5,
+        'action_executor': 6,
+    }
+    return order.get(name, 99)
 
 
 def _validate_incident(user_id: str, incident_id: str) -> dict:
@@ -107,6 +125,21 @@ async def approve_incident(incident_id: str, user_id: str = Depends(get_current_
 @router.post('/{incident_id}/run', response_model=Incident)
 async def run_incident_agents(incident_id: str, user_id: str = Depends(get_current_user_id)):
     incident = _validate_incident(user_id, incident_id)
+    if _runtime_mode() == 'gitlab_duo':
+        updated = store.update_incident(
+            incident,
+            status='AGENTS_RUNNING',
+            error_summary=incident.get('error_summary') or 'Waiting for GitLab Duo agent callback',
+        )
+        await manager.push_to_user(
+            user_id,
+            {
+                'type': 'incident.status',
+                'incident_id': incident_id,
+                'status': 'AGENTS_RUNNING',
+            },
+        )
+        return Incident.model_validate(updated)
     await run_incident_pipeline(incident_id)
     updated = store.get_incident(user_id, incident_id) or incident
     return Incident.model_validate(updated)
@@ -174,9 +207,33 @@ async def retry_agent(
     body: RetryAgentRequest,
     user_id: str = Depends(get_current_user_id),
 ):
-    _validate_incident(user_id, incident_id)
+    incident = _validate_incident(user_id, incident_id)
     if body.agent_name == 'action_executor':
         await run_action_executor(incident_id)
+    elif _runtime_mode() == 'gitlab_duo':
+        run = store.create_agent_run(
+            {
+                'incident_id': incident_id,
+                'agent_name': body.agent_name,
+                'agent_index': _agent_index(body.agent_name),
+                'status': 'queued',
+                'output_snapshot': {'note': 'Waiting for GitLab Duo callback'},
+            }
+        )
+        store.update_incident(
+            incident,
+            status='AGENTS_RUNNING',
+            error_summary=incident.get('error_summary') or 'Waiting for GitLab Duo agent callback',
+        )
+        await manager.push_to_user(
+            user_id,
+            {
+                'type': 'incident.status',
+                'incident_id': incident_id,
+                'status': 'AGENTS_RUNNING',
+            },
+        )
+        return AgentRun.model_validate(run)
     else:
         await run_incident_pipeline(incident_id)
 

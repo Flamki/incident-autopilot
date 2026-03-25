@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+from datetime import datetime, timezone
+
 import httpx
 
 from shared.base_agent import BaseAgent
@@ -40,18 +43,38 @@ class ActionExecutorAgent(BaseAgent):
 
     @staticmethod
     def _notify_api_server(context: dict, issue: dict) -> None:
-        api_url = context.get('__api_callback_url')
+        api_url = context.get('__api_callback_url') or os.getenv('API_CALLBACK_URL')
         if not api_url:
             return
+        callback_secret = context.get('__api_callback_secret') or os.getenv('API_CALLBACK_SECRET')
+        payload = {
+            'context': {
+                'incident_id': context.get('incident_id'),
+                'project_id': context.get('project_id'),
+                'project_path': context.get('project_path'),
+                'pipeline_id': context.get('pipeline_id'),
+                'pipeline_ref': context.get('pipeline_ref'),
+                'pipeline_url': context.get('pipeline_url'),
+                'pipeline': context.get('pipeline') or {},
+                'breaking_commit': context.get('breaking_commit') or {},
+                'code_context': context.get('code_context') or {},
+                'ownership': context.get('ownership') or {},
+                'recovery_plan': context.get('recovery_plan') or {},
+                'gitlab_issue_url': issue.get('web_url'),
+                'gitlab_issue_iid': issue.get('iid'),
+                'status': context.get('status') or 'PENDING_APPROVAL',
+                'completed_at': datetime.now(timezone.utc).isoformat(),
+            }
+        }
+        headers = {'content-type': 'application/json'}
+        if callback_secret:
+            headers['x-agent-callback-secret'] = callback_secret
         try:
             httpx.post(
                 api_url,
-                json={
-                    'incident_id': context.get('incident_id'),
-                    'issue_url': issue.get('web_url'),
-                    'status': 'resolved',
-                },
-                timeout=5,
+                json=payload,
+                headers=headers,
+                timeout=8,
             )
         except Exception:
             return

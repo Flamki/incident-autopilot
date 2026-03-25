@@ -22,6 +22,8 @@ context:
     pipeline_id: '{{ trigger.pipeline.id | default(null) }}'
     pipeline_ref: '{{ trigger.pipeline.ref | default(null) }}'
     pipeline_url: '{{ trigger.pipeline.web_url | default(null) }}'
+    __api_callback_url: '{{ env.API_CALLBACK_URL | default("") }}'
+    __api_callback_secret: '{{ env.API_CALLBACK_SECRET | default("") }}'
 agents:
   - id: log-analyzer
     name: 'Log Analyzer'
@@ -83,6 +85,9 @@ agents:
     depends_on: [recovery-planner]
     input_mapping:
       context: '$context'
+    output_mapping:
+      gitlab_issue_url: '$context.gitlab_issue_url'
+      gitlab_issue_iid: '$context.gitlab_issue_iid'
     timeout: 20
 
 settings:

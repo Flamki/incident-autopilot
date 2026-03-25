@@ -41,7 +41,7 @@ Implemented from blueprint:
 - Settings: general/agents/notifications
 - Analytics: summary + agent metrics
 - Me/Team: profile/team/invite
-- Webhooks: `/webhooks/gitlab`
+- Webhooks: `/webhooks/gitlab`, `/webhooks/agent-callback`
 - WebSocket: `/ws?token=...`
 
 ## Local Setup
@@ -108,9 +108,14 @@ Backend:
 - `GITLAB_ACCESS_TOKEN` (optional PAT fallback)
 - `ALLOWED_ORIGINS`
 - `PUBLIC_API_BASE_URL`
+- `AGENT_RUNTIME_MODE` (`gitlab_duo` recommended for free GitLab Duo Anthropic access)
+- `AGENT_CALLBACK_SECRET` (optional but recommended for secure agent callbacks)
 - `ANTHROPIC_API_KEY`
 - `ANTHROPIC_MODEL`
 - `ANTHROPIC_API_BASE`
+
+If you use `AGENT_RUNTIME_MODE=gitlab_duo`, you do not need to buy or configure an `ANTHROPIC_API_KEY` in this app.  
+GitLab Duo Agent Platform provides Anthropic models inside GitLab's sandbox runtime.
 
 ## Verification Commands
 
@@ -156,7 +161,10 @@ docker run -p 8000:8000 --env-file .env incident-autopilot-api
 1. Register `.gitlab/agents/*.yml`
 2. Register `.gitlab/flows/incident_autopilot.yml`
 3. Connect monitored repository webhooks to `/webhooks/gitlab`
-4. Trigger failing pipeline to test end-to-end flow
+4. Set flow/environment variables:
+   - `API_CALLBACK_URL=https://incident-autopilot-backend-vercel.vercel.app/webhooks/agent-callback`
+   - `API_CALLBACK_SECRET=<same-value-as-AGENT_CALLBACK_SECRET>`
+5. Trigger failing pipeline to test end-to-end flow
 
 ## Scripts
 

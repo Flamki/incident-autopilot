@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     anthropic_api_key: str = Field(default='', alias='ANTHROPIC_API_KEY')
     anthropic_model: str = Field(default='claude-3-5-sonnet-latest', alias='ANTHROPIC_MODEL')
     anthropic_api_base: str = Field(default='https://api.anthropic.com/v1/messages', alias='ANTHROPIC_API_BASE')
+    agent_runtime_mode: str = Field(default='gitlab_duo', alias='AGENT_RUNTIME_MODE')
 
     jwt_secret: str = Field(default='dev-secret-change-me-please-32-chars', alias='JWT_SECRET')
     jwt_algorithm: str = Field(default='HS256', alias='JWT_ALGORITHM')
